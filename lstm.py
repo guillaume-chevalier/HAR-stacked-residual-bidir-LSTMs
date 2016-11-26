@@ -65,21 +65,106 @@ class Config(object):
         # Trainging
         self.learning_rate = 0.0025
         self.lambda_loss_amount = 0.0015
-        self.training_epochs = 300
+        self.training_epochs = 30
         self.batch_size = 1500
 
         # LSTM structure
         self.n_inputs = len(X_train[0][0])  # Features count is of 9: three 3D sensors features over time
-        self.n_hidden = 32  # nb of neurons inside the neural network
+        self.n_hidden = 28  # nb of neurons inside the neural network
         self.n_classes = 6  # Final output classes
-        self.W = {
-            'hidden': tf.Variable(tf.random_normal([self.n_inputs, self.n_hidden])),
-            'output': tf.Variable(tf.random_normal([self.n_hidden, self.n_classes]))
-        }
-        self.biases = {
-            'hidden': tf.Variable(tf.random_normal([self.n_hidden])),
-            'output': tf.Variable(tf.random_normal([self.n_classes]))
-        }
+        self.n_residual_layers = 2  # Residual LSTMs, highway-style
+        self.n_stacked_layers = 2  # Stack multiple blocks of residual/highway
+
+
+def linear(input_2D_tensor_list, features_len, new_features_len):
+    # Linear activation, reshaping inputs to each LSTMs
+    # according to their number of hidden:
+
+    # Note: it might be interesting to try different initializers.
+    W = tf.get_variable(
+        "linear_weights",
+        initializer=tf.random_normal([features_len, new_features_len])
+    )
+    b = tf.get_variable(
+        "linear_biases",
+        initializer=tf.random_normal([new_features_len])
+    )
+    # The following step could probably be optimized by multiplying
+    # once with surrounded packing/unpacking operations:
+
+    print "Linear matmul shape: "
+    print ([features_len, new_features_len])
+    input_2D_tensor_list = [
+        tf.matmul(input_2D_tensor, W) + b
+            for input_2D_tensor in input_2D_tensor_list
+    ]
+    return input_2D_tensor_list
+
+
+def LSTM_cell(input_hidden_tensor, n_outputs):
+    # Define LSTM cell hidden layer:
+    lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, forget_bias=1.0)
+
+    # Get LSTM outputs, the states are internal to the LSTM cells,they are not our attention here
+    outputs, _ = tf.nn.rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
+    # outputs' shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_classes]
+
+    return outputs
+
+
+def bidirectional_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs):
+    """
+    The input_hidden_tensor should be a list of lenght "time_step"
+    containing tensors of shape [batch_size, n_lower_features]
+    """
+    print "bidir:"
+    print (len(input_hidden_tensor), str(input_hidden_tensor[0].get_shape()))
+
+    with tf.variable_scope('bidir_concat') as scope:
+        with tf.variable_scope('pass_forward') as scope2:
+            hidden = linear(input_hidden_tensor, n_inputs, n_outputs)
+            print (len(hidden), str(hidden[0].get_shape()))
+            forward = LSTM_cell(hidden, n_outputs)
+            print (len(forward), str(forward[0].get_shape()))
+
+        # Backward pass is as simple as surrounding the cell with a double inversion:
+        with tf.variable_scope('pass_backward') as scope2:
+            hidden = linear(input_hidden_tensor, n_inputs, n_outputs)
+            print (len(hidden), str(hidden[0].get_shape()))
+            backward = list(reversed(LSTM_cell(list(reversed(hidden)), n_outputs)))
+            print (len(backward), str(backward[0].get_shape()))
+
+
+        # Simply concatenating cells' outputs at each timesteps on the innermost
+        # dimension, like if the two cells acted as one cell
+        # with twice the n_hidden size:
+        layer_hidden_outputs = [
+            tf.concat(len(f.get_shape())-1, [f, b])
+                for f, b in zip(forward, backward)
+        ]
+
+    return layer_hidden_outputs
+
+
+def add_highway_redisual(layer, residual_minilayer):
+    return [a + b for a, b in zip(layer, residual_minilayer)]
+
+
+def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, layer_level):
+    with tf.variable_scope('layer_{}'.format(layer_level)) as scope:
+
+        hidden_LSTM_layer = bidirectional_LSTM_cell(input_hidden_tensor, n_input, n_output)
+
+        # Adding K new residual bidir connections to this first layer:
+        for i in range(config.n_residual_layers):
+            with tf.variable_scope('LSTM_residual_{}'.format(i)) as scope2:
+
+                hidden_LSTM_layer = add_highway_redisual(
+                    hidden_LSTM_layer,
+                    bidirectional_LSTM_cell(input_hidden_tensor, n_input, n_output)
+                )
+
+    return hidden_LSTM_layer
 
 
 def LSTM_Network(feature_mat, config):
@@ -92,37 +177,44 @@ def LSTM_Network(feature_mat, config):
       return:
               : matrix  output shape [batch_size,n_classes]
     """
-    # Exchange dim 1 and dim 0
-    feature_mat = tf.transpose(feature_mat, [1, 0, 2])
-    # New feature_mat's shape: [time_steps, batch_size, n_inputs]
 
-    # Temporarily crush the feature_mat's dimensions
-    feature_mat = tf.reshape(feature_mat, [-1, config.n_inputs])
-    # New feature_mat's shape: [time_steps*batch_size, n_inputs]
+    with tf.variable_scope('LSTM_Network') as scope:  # TensorFlow graph naming
 
-    # Linear activation, reshaping inputs to the LSTM's number of hidden:
-    feature_mat = tf.matmul(
-        feature_mat, config.W['hidden']
-    ) + config.biases['hidden']
-    # New feature_mat's shape: [time_steps*batch_size, n_hidden]
+        # Exchange dim 1 and dim 0
+        feature_mat = tf.transpose(feature_mat, [1, 0, 2])
+        print feature_mat.get_shape()
+        # New feature_mat's shape: [time_steps, batch_size, n_inputs]
 
-    # Split the series because the rnn cell needs time_steps features, each of shape:
-    feature_mat = tf.split(0, config.n_steps, feature_mat)
-    # New feature_mat's shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_hidden]
+        # Temporarily crush the feature_mat's dimensions
+        feature_mat = tf.reshape(feature_mat, [-1, config.n_inputs])
+        print feature_mat.get_shape()
+        # New feature_mat's shape: [time_steps*batch_size, n_inputs]
 
-    # Define LSTM cell of first hidden layer:
-    lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(config.n_hidden, forget_bias=1.0)
+        # Split the series because the rnn cell needs time_steps features, each of shape:
+        hidden = tf.split(0, config.n_steps, feature_mat)
+        print (len(hidden), str(hidden[0].get_shape()))
+        # New shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_hidden]
 
-    # Stack two LSTM layers, both layers has the same shape
-    lsmt_layers = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * 2)
+        # Stack two residual bidirectional LSTM cells:
 
-    # Get LSTM outputs, the states are internal to the LSTM cells,they are not our attention here
-    outputs, _ = tf.nn.rnn(lsmt_layers, feature_mat, dtype=tf.float32)
-    # outputs' shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_classes]
+        print "\nCreating hidden 1:"
+        hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1)
+        print (len(hidden), str(hidden[0].get_shape()))
 
-    # Linear activation
-    # Get the last output tensor of the inner loop output series, of shape [batch_size, n_classes]
-    return tf.matmul(outputs[-1], config.W['output']) + config.biases['output']
+        for stacked_hidden_index in range(1, config.n_stacked_layers):
+
+            print "\nCreating hidden {}:".format(stacked_hidden_index+1)
+            hidden = residual_bidirectional_LSTM_layers(hidden, 2*config.n_hidden, config.n_hidden, stacked_hidden_index+1)
+            print (len(hidden), str(hidden[0].get_shape()))
+
+        print ""
+
+        # Final linear activation logits
+        # Get the last output tensor of the inner loop output series, of shape [batch_size, n_classes]
+        return linear(
+            [hidden[-1]],
+            2*config.n_hidden, config.n_classes
+        )[0]
 
 
 def one_hot(label):
@@ -221,7 +313,7 @@ if __name__ == "__main__":
     # step4: Hooray, now train the neural network
     #--------------------------------------------
     # Note that log_device_placement can be turned of for less console spam.
-    sess=tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True))
+    sess=tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=False))
     tf.initialize_all_variables().run()
 
     best_accuracy = 0.0
