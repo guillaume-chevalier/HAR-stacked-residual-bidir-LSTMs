@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from sklearn import metrics
+from sklearn.utils import shuffle
 
 import os
 
@@ -62,11 +63,13 @@ class Config(object):
         self.test_data_count = len(X_test)  # 2947 testing series
         self.n_steps = len(X_train[0])  # 128 time_steps per series
 
-        # Trainging
-        self.learning_rate = 0.0025
-        self.lambda_loss_amount = 0.0015
-        self.training_epochs = 30
+        # Training
+        self.learning_rate = 0.001
+        self.lambda_loss_amount = 0.005
+        self.training_epochs = 300
         self.batch_size = 1500
+        self.clip_gradients = 15.0
+        self.gradient_noise_scale = None
 
         # LSTM structure
         self.n_inputs = len(X_train[0][0])  # Features count is of 9: three 3D sensors features over time
@@ -292,19 +295,27 @@ if __name__ == "__main__":
     #------------------------------------------------------
     # step3: Let's get serious and build the neural network
     #------------------------------------------------------
+
     X = tf.placeholder(tf.float32, [None, config.n_steps, config.n_inputs])
     Y = tf.placeholder(tf.float32, [None, config.n_classes])
 
     pred_Y = LSTM_Network(X, config)
 
-    # Loss,optimizer,evaluation
+    # Loss, optimizer, evaluation
     l2 = config.lambda_loss_amount * \
         sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
     # Softmax loss and L2
-    cost = tf.reduce_mean(
+    loss = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(pred_Y, Y)) + l2
-    optimizer = tf.train.AdamOptimizer(
-        learning_rate=config.learning_rate).minimize(cost)
+    # Gradient clipping Adam optimizer with gradient noise
+    optimize = tf.contrib.layers.optimize_loss(
+        loss,
+        global_step=tf.Variable(0),
+        learning_rate=config.learning_rate,
+        optimizer=tf.train.AdamOptimizer(learning_rate=config.learning_rate),
+        clip_gradients=config.clip_gradients,
+        gradient_noise_scale=config.gradient_noise_scale
+    )
 
     correct_pred = tf.equal(tf.argmax(pred_Y, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
@@ -319,17 +330,27 @@ if __name__ == "__main__":
     best_accuracy = 0.0
     # Start training for each batch and loop epochs
     for i in range(config.training_epochs):
+        shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
         for start, end in zip(range(0, config.train_count, config.batch_size),
                               range(config.batch_size, config.train_count + 1, config.batch_size)):
-            sess.run(optimizer, feed_dict={X: X_train[start:end],
-                                           Y: y_train[start:end]})
+            sess.run(
+                optimize,
+                feed_dict={
+                    X: shuffled_X[start:end],
+                    Y: shuffled_y[start:end]
+                }
+            )
 
         # Test completely at every epoch: calculate accuracy
-        pred_out, accuracy_out, loss_out = sess.run([pred_Y, accuracy, cost], feed_dict={
-                                                X: X_test, Y: y_test})
-        print("traing iter: {},".format(i)+\
-              " test accuracy : {},".format(accuracy_out)+\
-              " loss : {}".format(loss_out))
+        pred_out, accuracy_out, loss_out = sess.run(
+            [pred_Y, accuracy, loss],
+            feed_dict={X: X_test, Y: y_test}
+        )
+
+        print("train iter: {},".format(i)+\
+              " test accuracy: {},".format(accuracy_out)+\
+              " loss: {}".format(loss_out))
+
         best_accuracy = max(best_accuracy, accuracy_out)
 
     print("")
