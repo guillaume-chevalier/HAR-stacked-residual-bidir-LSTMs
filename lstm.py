@@ -66,14 +66,14 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 300
-        self.batch_size = 1500
+        self.training_epochs = 100
+        self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
 
         # LSTM structure
         self.n_inputs = len(X_train[0][0])  # Features count is of 9: three 3D sensors features over time
-        self.n_hidden = 28  # nb of neurons inside the neural network
+        self.n_hidden = 32  # nb of neurons inside the neural network
         self.n_classes = 6  # Final output classes
         self.n_residual_layers = 2  # Residual LSTMs, highway-style
         self.n_stacked_layers = 2  # Stack multiple blocks of residual/highway
@@ -98,7 +98,7 @@ def linear(input_2D_tensor_list, features_len, new_features_len):
     print "Linear matmul shape: "
     print ([features_len, new_features_len])
     input_2D_tensor_list = [
-        tf.matmul(input_2D_tensor, W) + b
+        tf.nn.relu(tf.matmul(input_2D_tensor, W) + b)
             for input_2D_tensor in input_2D_tensor_list
     ]
     return input_2D_tensor_list
@@ -333,8 +333,8 @@ if __name__ == "__main__":
         shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
         for start, end in zip(range(0, config.train_count, config.batch_size),
                               range(config.batch_size, config.train_count + 1, config.batch_size)):
-            sess.run(
-                optimize,
+            _,train_acc,train_loss=sess.run(
+                [optimize,accuracy,loss],
                 feed_dict={
                     X: shuffled_X[start:end],
                     Y: shuffled_y[start:end]
@@ -348,6 +348,8 @@ if __name__ == "__main__":
         )
 
         print("train iter: {},".format(i)+\
+              "train accuracy: {}".format(train_acc)+\
+              "train loss: {}".format(train_loss)+\
               " test accuracy: {},".format(accuracy_out)+\
               " loss: {}".format(loss_out))
 
