@@ -77,7 +77,7 @@ def batch_norm(input_tensor, config):
     # Implementing batch normalisation: this is used out of the residual layers
     # to normalise those output neurons by mean and standard deviation.
 
-    if config.n_residual_layers == 1:
+    if config.n_residual_layers == 0:
         # There is no residual layers, no need for batch_norm:
         return input_tensor
 
