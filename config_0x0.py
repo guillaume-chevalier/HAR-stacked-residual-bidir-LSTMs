@@ -1,6 +1,6 @@
 
 from lstm_architecture import load_X, load_Y, run_with_config
-
+import tensorflow as tf
 
 class Config(object):
     """
@@ -18,7 +18,7 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 300
+        self.training_epochs = 2
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
@@ -47,5 +47,11 @@ class Config(object):
 
 
 # Train
-accuracy_out, best_accuracy = run_with_config(Config)
-print (accuracy_out, best_accuracy)
+for learning_rate in [0.7,0.1,0.07,0.01]:
+    with tf.variable_scope(str(learning_rate)):
+        Config.learning_rate=learning_rate
+        accuracy_out, best_accuracy = run_with_config(Config)
+        print (accuracy_out, best_accuracy)
+        with open('0x0_result.txt','a') as f:
+            f.write(str(learning_rate)+'\t'+str(accuracy_out)+'\t'+str(best_accuracy)+'\n')
+
