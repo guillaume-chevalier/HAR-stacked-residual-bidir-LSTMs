@@ -46,39 +46,41 @@ class Config(object):
 
 
 
-for n_stacked_layers in [0,1,2]:
-    for n_residual_layers in [0,1,2]:
-        for learning_rate in [0.01, 0.007, 0.001, 0.0007]:
-            for lambda_loss_amount in [0.01, 0.005, 0.001]:
-                for clip_gradients in [5,10,15]:
-                    print "learning_rate: {}".format(learning_rate)
-                    print "lambda_loss_amount: {}".format(lambda_loss_amount)
-                    print ""
-                    class EditedConfig(Config):
-                        def __init__(self, X, Y):
-                            super(EditedConfig, self).__init__(X, Y)
+# Train
+n_residual_layers = 0
+n_stacked_layers = 0
+trial_name = "{}x{}".format(n_residual_layers, n_stacked_layers)
 
-                            # Edit only some parameters:
-                            self.learning_rate = learning_rate
-                            self.lambda_loss_amount = lambda_loss_amount
-                            self.clip_gradients=clip_gradients
-                            # Architecture params:
-                            self.n_residual_layers = n_residual_layers
-                            self.n_stacked_layers = n_stacked_layers
-                    try:
-                        accuracy_out, best_accuracy = run_with_config(EditedConfig)
-                    except:
-                        accuracy_out, best_accuracy = -1, -1
-                    print (accuracy_out, best_accuracy)
+for learning_rate in [0.01, 0.007, 0.001, 0.0007]:
+    for lambda_loss_amount in [0.01, 0.005, 0.001]:
+        for clip_gradients in [5,10,15]:
+            print "learning_rate: {}".format(learning_rate)
+            print "lambda_loss_amount: {}".format(lambda_loss_amount)
+            print ""
 
-                    with open('Basic_LSTM_result.txt','a') as f:
-                        f.write(str(n_stacked_layers)+'\t'+str(n_residual_layers)+'\t'+
-                            str(learning_rate)+'\t'+str(lambda_loss_amount)+'\t'+
-                            str(clip_gradients)+'\t'+
-                            str(accuracy_out)+'\t'+str(best_accuracy)+'\n\n')
+            class EditedConfig(Config):
+                def __init__(self, X, Y):
+                    super(EditedConfig, self).__init__(X, Y)
 
-                    print "________________________________________________________"
-    print ""
+                    # Edit only some parameters:
+                    self.learning_rate = learning_rate
+                    self.lambda_loss_amount = lambda_loss_amount
+                    self.clip_gradients=clip_gradients
+                    # Architecture params:
+                    self.n_residual_layers = n_residual_layers
+                    self.n_stacked_layers = n_stacked_layers
+            try:
+                accuracy_out, best_accuracy = run_with_config(EditedConfig)
+            except:
+                accuracy_out, best_accuracy = -1, -1
+            print (accuracy_out, best_accuracy)
+
+            with open('{}_result.txt'.format(trial_name),'a') as f:
+                f.write(str(learning_rate)+'\t'+str(lambda_loss_amount)+'\t'+str(clip_gradients)+'\t'+str(accuracy_out)+'\t'+str(best_accuracy)+'\n\n')
+
+            print "________________________________________________________"
+        print ""
 print "Done."
+
 
 
