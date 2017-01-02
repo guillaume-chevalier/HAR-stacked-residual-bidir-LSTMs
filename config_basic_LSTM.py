@@ -1,7 +1,6 @@
 
 from lstm_architecture import load_X, load_Y, run_with_config
 
-
 class Config(object):
     """
     define a class to store parameters,
@@ -18,7 +17,7 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 300
+        self.training_epochs = 500
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
@@ -37,15 +36,51 @@ class Config(object):
         # LSTM structure
         self.n_inputs = len(X_train[0][0])  # Features count is of 9: three 3D sensors features over time
         self.n_hidden = 28  # nb of neurons inside the neural network
-        self.use_bidirectionnal_cells = True  # Use bidir in every LSTM cell, or not:
+        self.use_bidirectionnal_cells = False  # Use bidir in every LSTM cell, or not:
 
         # High-level deep architecture
         self.also_add_dropout_between_stacked_cells = False
         self.n_residual_layers = 0  # Number of residual connections to the LSTMs (highway-style), this is did for each stacked block (inside them).
-        self.n_stacked_layers = 2  # Stack multiple blocks of residual layers.
+        self.n_stacked_layers = 0  # Stack multiple blocks of residual layers.
         # NOTE: values of exactly 0 (int) for those last 2 high-level parameters totally disables them and result in only 1 starting LSTM.
 
 
+
 # Train
-accuracy_out, best_accuracy = run_with_config(Config)
-print (accuracy_out, best_accuracy)
+n_residual_layers = 0
+n_stacked_layers = 0
+trial_name = "{}x{}".format(n_residual_layers, n_stacked_layers)
+
+for learning_rate in [0.01, 0.007, 0.001, 0.0007]:
+    for lambda_loss_amount in [0.01, 0.005, 0.001]:
+        for clip_gradients in [5,10,15]:
+            print "learning_rate: {}".format(learning_rate)
+            print "lambda_loss_amount: {}".format(lambda_loss_amount)
+            print ""
+
+            class EditedConfig(Config):
+                def __init__(self, X, Y):
+                    super(EditedConfig, self).__init__(X, Y)
+
+                    # Edit only some parameters:
+                    self.learning_rate = learning_rate
+                    self.lambda_loss_amount = lambda_loss_amount
+                    self.clip_gradients=clip_gradients
+                    # Architecture params:
+                    self.n_residual_layers = n_residual_layers
+                    self.n_stacked_layers = n_stacked_layers
+            try:
+                accuracy_out, best_accuracy = run_with_config(EditedConfig)
+            except:
+                accuracy_out, best_accuracy = -1, -1
+            print (accuracy_out, best_accuracy)
+
+            with open('{}_result.txt'.format(trial_name),'a') as f:
+                f.write(str(learning_rate)+'\t'+str(lambda_loss_amount)+'\t'+str(clip_gradients)+'\t'+str(accuracy_out)+'\t'+str(best_accuracy)+'\n\n')
+
+            print "________________________________________________________"
+        print ""
+print "Done."
+
+
+

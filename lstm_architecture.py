@@ -276,6 +276,7 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
 
 
 def run_with_config(Config):
+    tf.reset_default_graph()  # To enable to run multiple things in a loop
 
     #-----------------------------
     # step1: load and prepare data
@@ -349,47 +350,48 @@ def run_with_config(Config):
     # step4: Hooray, now train the neural network
     #--------------------------------------------
     # Note that log_device_placement can be turned of for less console spam.
-    sess=tf.InteractiveSession(
-        config=tf.ConfigProto(log_device_placement=False))
-    tf.initialize_all_variables().run()
 
-    best_accuracy = 0.0
-    # Start training for each batch and loop epochs
-    for i in range(config.training_epochs):
-        shuffled_X, shuffled_Y = shuffle(X_train, Y_train, random_state=i*42)
-        for start, end in zip(range(0, config.train_count, config.batch_size),
-                              range(config.batch_size, config.train_count + 1, config.batch_size)):
-            _, train_acc, train_loss = sess.run(
-                [optimize,accuracy,loss],
+    sessconfig = tf.ConfigProto(log_device_placement=False)
+    with tf.Session(config=sessconfig) as sess:
+        tf.initialize_all_variables().run()
+
+        best_accuracy = 0.0
+        # Start training for each batch and loop epochs
+        for i in range(config.training_epochs):
+            shuffled_X, shuffled_Y = shuffle(X_train, Y_train, random_state=i*42)
+            for start, end in zip(range(0, config.train_count, config.batch_size),
+                                  range(config.batch_size, config.train_count + 1, config.batch_size)):
+                _, train_acc, train_loss = sess.run(
+                    [optimize,accuracy,loss],
+                    feed_dict={
+                        X: shuffled_X[start:end],
+                        Y: shuffled_Y[start:end],
+                        is_train: True
+                    }
+                )
+
+            # Test completely at every epoch: calculate accuracy
+            pred_out, accuracy_out, loss_out = sess.run(
+                [pred_Y, accuracy, loss],
                 feed_dict={
-                    X: shuffled_X[start:end],
-                    Y: shuffled_Y[start:end],
-                    is_train: True
+                    X: X_test,
+                    Y: Y_test,
+                    is_train: False
                 }
             )
 
-        # Test completely at every epoch: calculate accuracy
-        pred_out, accuracy_out, loss_out = sess.run(
-            [pred_Y, accuracy, loss],
-            feed_dict={
-                X: X_test,
-                Y: Y_test,
-                is_train: False
-            }
-        )
+            print("train iter: {}, ".format(i)+\
+                  "train accuracy: {}, ".format(train_acc)+\
+                  "train loss: {}, ".format(train_loss)+\
+                  "test accuracy: {}, ".format(accuracy_out)+\
+                  "test loss: {}".format(loss_out))
 
-        print("train iter: {}, ".format(i)+\
-              "train accuracy: {}, ".format(train_acc)+\
-              "train loss: {}, ".format(train_loss)+\
-              "test accuracy: {}, ".format(accuracy_out)+\
-              "test loss: {}".format(loss_out))
+            best_accuracy = max(best_accuracy, accuracy_out)
 
-        best_accuracy = max(best_accuracy, accuracy_out)
-
-    print("")
-    print("final test accuracy: {}".format(accuracy_out))
-    print("best epoch's test accuracy: {}".format(best_accuracy))
-    print("")
+        print("")
+        print("final test accuracy: {}".format(accuracy_out))
+        print("best epoch's test accuracy: {}".format(best_accuracy))
+        print("")
 
     #------------------------------------------------------------------
     # step5: Training is good, but having visual insight is even better
