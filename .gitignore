@@ -89,3 +89,5 @@ ENV/
 .ropeproject
 
 gpu.txt
+_*
+
