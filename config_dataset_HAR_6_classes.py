@@ -33,7 +33,7 @@ class Config(object):
         self.keep_prob_for_dropout = 0.85  # Dropout is added on inputs and after each stacked layers (but not between residual layers).
 
         # Linear+relu structure
-        self.bias_mean = 0.0  # I would recommend to try 0.0 or 1.0
+        self.bias_mean = 0.3
         self.weights_stddev = 0.2  # I would recommend between 0.1 and 1.0 or to change and use a xavier initializer
 
         ########
@@ -184,11 +184,13 @@ for learning_rate in [0.001]:
             #     accuracy_out, best_accuracy = run_with_config(EditedConfig)
             # except:
             #     accuracy_out, best_accuracy = -1, -1
-            accuracy_out, best_accuracy = run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
-            print (accuracy_out, best_accuracy)
+            accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
+                run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
+            )
+            print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
-            with open('{}_result.txt'.format(trial_name),'a') as f:
-                f.write(str(learning_rate)+'\t'+str(lambda_loss_amount)+'\t'+str(clip_gradients)+'\t'+str(accuracy_out)+'\t'+str(best_accuracy)+'\n\n')
+            with open('{}_result_HAR_6.txt'.format(trial_name),'a') as f:
+                f.write(str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(clip_gradients)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n')
 
             print "________________________________________________________"
         print ""

@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-
+from sklearn import metrics
 from sklearn.utils import shuffle
 import numpy as np
 
@@ -256,14 +256,14 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
             )
         )
 
-        pred_Y = LSTM_network(X, config, keep_prob_for_dropout)
+        pred_y = LSTM_network(X, config, keep_prob_for_dropout)
 
         # Loss, optimizer, evaluation
         l2 = config.lambda_loss_amount * \
             sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
         # Softmax loss and L2
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_Y, Y)) + l2
+            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2
         # Gradient clipping Adam optimizer with gradient noise
         optimize = tf.contrib.layers.optimize_loss(
             loss,
@@ -274,7 +274,7 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
             gradient_noise_scale=config.gradient_noise_scale
         )
 
-        correct_pred = tf.equal(tf.argmax(pred_Y, 1), tf.argmax(Y, 1))
+        correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
 
     #--------------------------------------------
@@ -287,23 +287,30 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         tf.initialize_all_variables().run()
 
         best_accuracy = 0.0
+        best_f1_score = 0.0
+
         # Start training for each batch and loop epochs
         for i in range(config.training_epochs):
+
             shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
             for start, end in zip(range(0, config.train_count, config.batch_size),
                                   range(config.batch_size, config.train_count + 1, config.batch_size)):
-                _, train_acc, train_loss = sess.run(
-                    [optimize,accuracy,loss],
+
+                _, train_acc, train_loss, train_pred = sess.run(
+                    [optimize, accuracy, loss, pred_y],
                     feed_dict={
                         X: shuffled_X[start:end],
                         Y: shuffled_y[start:end],
                         is_train: True
                     }
                 )
+            train_f1_score = metrics.f1_score(
+                shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
+            )
 
             # Test completely at every epoch: calculate accuracy
             pred_out, accuracy_out, loss_out = sess.run(
-                [pred_Y, accuracy, loss],
+                [pred_y, accuracy, loss],
                 feed_dict={
                     X: X_test,
                     Y: y_test,
@@ -311,17 +318,28 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 }
             )
 
-            print("train iter: {}, ".format(i)+\
-                  "train accuracy: {}, ".format(train_acc)+\
-                  "train loss: {}, ".format(train_loss)+\
-                  "test accuracy: {}, ".format(accuracy_out)+\
-                  "test loss: {}".format(loss_out))
+            # "y_test.argmax(1)": could be optimised by being computed once...
+            f1_score_out = metrics.f1_score(
+                y_test.argmax(1), pred_out.argmax(1), average="weighted"
+            )
+
+            print (
+                "iter: {}, ".format(i) + \
+                "train loss: {}, ".format(train_loss) + \
+                "train accuracy: {}, ".format(train_acc) + \
+                "train F1-score: {}, ".format(train_f1_score) + \
+                "test loss: {}, ".format(loss_out) + \
+                "test accuracy: {}, ".format(accuracy_out) + \
+                "test F1-score: {}".format(f1_score_out)
+            )
 
             best_accuracy = max(best_accuracy, accuracy_out)
+            best_f1_score = max(best_f1_score, f1_score_out)
 
         print("")
         print("final test accuracy: {}".format(accuracy_out))
         print("best epoch's test accuracy: {}".format(best_accuracy))
         print("")
 
-    return accuracy_out, best_accuracy
+    # returning both final and bests accuracies and f1 scores.
+    return accuracy_out, best_accuracy, f1_score_out, best_f1_score
