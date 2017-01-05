@@ -28,7 +28,7 @@ class Config(object):
 
         # Training
         self.learning_rate = 0.001
-        self.lambda_loss_amount = 0.005
+        self.lambda_loss_amount = 0.0051
         self.training_epochs = 500
         self.batch_size = 100
         self.clip_gradients = 15.0
@@ -68,13 +68,13 @@ NB_SENSOR_CHANNELS = 113
 NUM_CLASSES = 18
 
 # Hardcoded length of the sliding window mechanism employed to segment the data
-SLIDING_WINDOW_LENGTH = 24
+SLIDING_WINDOW_LENGTH = 128
 
 # Length of the input sequence after convolutional operations
 FINAL_SEQUENCE_LENGTH = 8
 
 # Hardcoded step of the sliding window mechanism employed to segment the data
-SLIDING_WINDOW_STEP = 12
+SLIDING_WINDOW_STEP = int(SLIDING_WINDOW_LENGTH/2)
 
 # Batch Size
 BATCH_SIZE = 100

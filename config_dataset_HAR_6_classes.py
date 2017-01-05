@@ -156,8 +156,8 @@ y_test = load_y(y_test_path)
 # Training (maybe multiple) experiment(s)
 #--------------------------------------------
 
-n_layers_in_highway = 1
-n_stacked_layers = 1
+n_layers_in_highway = 3
+n_stacked_layers = 3
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
 for learning_rate in [0.001]:
