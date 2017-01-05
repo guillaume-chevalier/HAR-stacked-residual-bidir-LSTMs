@@ -1,83 +1,29 @@
 
 import tensorflow as tf
-
+from sklearn import metrics
 from sklearn.utils import shuffle
 import numpy as np
 
-import os
 
-
-def load_X(X_attribute):
-    """Given attribute(train or test) of feature, and read all 9 features into a ndarray,
-    shape is [sample_num,time_steps,feature_num]
-        argument: X_path str attribute of feature: train or test
-        return:  ndarray tensor of features
-    """
-    INPUT_SIGNAL_TYPES = [
-        "body_acc_x_",
-        "body_acc_y_",
-        "body_acc_z_",
-        "body_gyro_x_",
-        "body_gyro_y_",
-        "body_gyro_z_",
-        "total_acc_x_",
-        "total_acc_y_",
-        "total_acc_z_"
-    ]
-    X_path = './data/UCI HAR Dataset/' + X_attribute + '/Inertial Signals/'
-    X = []  # define a list to store the final features tensor
-    for name in INPUT_SIGNAL_TYPES:
-        absolute_name = X_path + name + X_attribute + '.txt'
-        f = open(absolute_name, 'rb')
-        # each_x shape is [sample_num,each_steps]
-        each_X = [np.array(serie, dtype=np.float32) for serie in [
-            row.replace("  ", " ").strip().split(" ") for row in f]]
-        # add all feature into X, X shape [feature_num, sample_num, time_steps]
-        X.append(each_X)
-        f.close()
-    # trans X from [feature_num, sample_num, time_steps] to [sample_num,
-    # time_steps,feature_num]
-    X = np.transpose(np.array(X), (1, 2, 0))
-    # print X.shape
-    return X
-
-
-def load_Y(Y_attribute):
-    """ read Y file and return Y
-        argument: Y_attribute str attibute of Y('train' or 'test')
-        return: Y ndarray the labels of each sample,range [0,5]
-    """
-    LABELS = [
-        "WALKING",
-        "WALKING_UPSTAIRS",
-        "WALKING_DOWNSTAIRS",
-        "SITTING",
-        "STANDING",
-        "LAYING"
-    ]
-    Y_path = './data/UCI HAR Dataset/' + Y_attribute + '/y_' + Y_attribute + '.txt'
-    f = open(Y_path)
-    # create Y, type is ndarray, range [0,5]
-    Y = np.array([int(row) for row in f], dtype=np.int32) - 1
-    f.close()
-    return Y
-
-
-def one_hot(Y):
+def one_hot(y):
     """convert label from dense to one hot
       argument:
         label: ndarray dense label ,shape: [sample_num,1]
       return:
         one_hot_label: ndarray  one hot, shape: [sample_num,n_class]
     """
-    return np.eye(6)[np.array(Y)]
+    # e.g.: [[5], [0], [3]] --> [[0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0]]
+
+    y = y.reshape(len(y))
+    n_values = np.max(y) + 1
+    return np.eye(n_values)[np.array(y, dtype=np.int32)]  # Returns FLOATS
 
 
 def batch_norm(input_tensor, config):
     # Implementing batch normalisation: this is used out of the residual layers
     # to normalise those output neurons by mean and standard deviation.
 
-    if config.n_residual_layers == 0:
+    if config.n_layers_in_highway == 0:
         # There is no residual layers, no need for batch_norm:
         return input_tensor
 
@@ -146,7 +92,7 @@ def single_LSTM_cell(input_hidden_tensor, n_outputs):
                      shape: time_steps*[batch_size,n_outputs]
     """
     with tf.variable_scope("lstm_cell"):
-        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, forget_bias=1.0)
+        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=0.995)
         outputs, _ = tf.nn.rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
     return outputs
 
@@ -188,7 +134,7 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
 
 
 def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, layer_level, config):
-    """This architecture is only enabled if "config.n_residual_layers" has a
+    """This architecture is only enabled if "config.n_layers_in_highway" has a
     value only greater than int(0). The arguments are same than for bi_LSTM_cell.
     arguments:
         input_hidden_tensor: list a time_steps series of tensor, shape: [sample_num, n_inputs]
@@ -209,7 +155,7 @@ def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, l
 
         hidden_LSTM_layer = get_lstm(input_hidden_tensor)
         # Adding K new (residual bidir) connections to this first layer:
-        for i in range(config.n_residual_layers):
+        for i in range(config.n_layers_in_highway - 1):
             with tf.variable_scope('LSTM_residual_{}'.format(i)) as scope2:
                 hidden_LSTM_layer = add_highway_redisual(
                     hidden_LSTM_layer,
@@ -257,7 +203,7 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
         hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config)
         print (len(hidden), str(hidden[0].get_shape()))
 
-        for stacked_hidden_index in range(config.n_stacked_layers):
+        for stacked_hidden_index in range(config.n_stacked_layers - 1):
             # If the config permits it, we stack more lstm cells:
             print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
             hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config)
@@ -275,37 +221,23 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
         return last_logits
 
 
-def run_with_config(Config):
-
-    #-----------------------------
-    # step1: load and prepare data
-    #-----------------------------
-    # Those are separate normalised input features for the neural network
-
-    # shape [sample_num,time_steps,feature_num]=[7352,128,9]
-    X_train = load_X('train')
-    # shape [sample_num,time_steps,feature_num]=[1947,128,9]
-    X_test = load_X('test')
-
-    Y_train = load_Y('train')  # shape [sample_num,]=[7352,]
-    Y_test = load_Y('test')  # shape [sample_num,]=[2947]
-    Y_train = one_hot(Y_train)  # shape [sample_num, n_classes]=[2947, 6]
-    Y_test = one_hot(Y_test)  # shape [sample_num, n_classes]=[2947, 6]
+def run_with_config(Config, X_train, y_train, X_test, y_test):
+    tf.reset_default_graph()  # To enable to run multiple things in a loop
 
     #-----------------------------------
-    # step2: define parameters for model
+    # Define parameters for model
     #-----------------------------------
     config = Config(X_train, X_test)
     print("Some useful info to get an insight on dataset's shape and normalisation:")
     print("features shape, labels shape, each features mean, each features standard deviation")
-    print(X_test.shape, Y_test.shape,
+    print(X_test.shape, y_test.shape,
           np.mean(X_test), np.std(X_test))
     print("the dataset is therefore properly normalised, as expected.")
 
     #------------------------------------------------------
-    # step3: Let's get serious and build the neural network
+    # Let's get serious and build the neural network
     #------------------------------------------------------
-    with tf.device("/cpu:0"):
+    with tf.device("/cpu:0"):  # Remove this line to use GPU. If you have a too small GPU, it crashes.
         X = tf.placeholder(tf.float32, [
                            None, config.n_steps, config.n_inputs], name="X")
         Y = tf.placeholder(tf.float32, [
@@ -324,14 +256,14 @@ def run_with_config(Config):
             )
         )
 
-        pred_Y = LSTM_network(X, config, keep_prob_for_dropout)
+        pred_y = LSTM_network(X, config, keep_prob_for_dropout)
 
         # Loss, optimizer, evaluation
         l2 = config.lambda_loss_amount * \
             sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
         # Softmax loss and L2
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_Y, Y)) + l2
+            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2
         # Gradient clipping Adam optimizer with gradient noise
         optimize = tf.contrib.layers.optimize_loss(
             loss,
@@ -342,63 +274,72 @@ def run_with_config(Config):
             gradient_noise_scale=config.gradient_noise_scale
         )
 
-        correct_pred = tf.equal(tf.argmax(pred_Y, 1), tf.argmax(Y, 1))
+        correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
 
     #--------------------------------------------
-    # step4: Hooray, now train the neural network
+    # Hooray, now train the neural network
     #--------------------------------------------
     # Note that log_device_placement can be turned of for less console spam.
-    sess=tf.InteractiveSession(
-        config=tf.ConfigProto(log_device_placement=False))
-    tf.initialize_all_variables().run()
 
-    best_accuracy = 0.0
-    # Start training for each batch and loop epochs
-    for i in range(config.training_epochs):
-        shuffled_X, shuffled_Y = shuffle(X_train, Y_train, random_state=i*42)
-        for start, end in zip(range(0, config.train_count, config.batch_size),
-                              range(config.batch_size, config.train_count + 1, config.batch_size)):
-            _, train_acc, train_loss = sess.run(
-                [optimize,accuracy,loss],
+    sessconfig = tf.ConfigProto(log_device_placement=False)
+    with tf.Session(config=sessconfig) as sess:
+        tf.initialize_all_variables().run()
+
+        best_accuracy = 0.0
+        best_f1_score = 0.0
+
+        # Start training for each batch and loop epochs
+        for i in range(config.training_epochs):
+
+            shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
+            for start, end in zip(range(0, config.train_count, config.batch_size),
+                                  range(config.batch_size, config.train_count + 1, config.batch_size)):
+
+                _, train_acc, train_loss, train_pred = sess.run(
+                    [optimize, accuracy, loss, pred_y],
+                    feed_dict={
+                        X: shuffled_X[start:end],
+                        Y: shuffled_y[start:end],
+                        is_train: True
+                    }
+                )
+            train_f1_score = metrics.f1_score(
+                shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
+            )
+
+            # Test completely at every epoch: calculate accuracy
+            pred_out, accuracy_out, loss_out = sess.run(
+                [pred_y, accuracy, loss],
                 feed_dict={
-                    X: shuffled_X[start:end],
-                    Y: shuffled_Y[start:end],
-                    is_train: True
+                    X: X_test,
+                    Y: y_test,
+                    is_train: False
                 }
             )
 
-        # Test completely at every epoch: calculate accuracy
-        pred_out, accuracy_out, loss_out = sess.run(
-            [pred_Y, accuracy, loss],
-            feed_dict={
-                X: X_test,
-                Y: Y_test,
-                is_train: False
-            }
-        )
+            # "y_test.argmax(1)": could be optimised by being computed once...
+            f1_score_out = metrics.f1_score(
+                y_test.argmax(1), pred_out.argmax(1), average="weighted"
+            )
 
-        print("train iter: {}, ".format(i)+\
-              "train accuracy: {}, ".format(train_acc)+\
-              "train loss: {}, ".format(train_loss)+\
-              "test accuracy: {}, ".format(accuracy_out)+\
-              "test loss: {}".format(loss_out))
+            print (
+                "iter: {}, ".format(i) + \
+                "train loss: {}, ".format(train_loss) + \
+                "train accuracy: {}, ".format(train_acc) + \
+                "train F1-score: {}, ".format(train_f1_score) + \
+                "test loss: {}, ".format(loss_out) + \
+                "test accuracy: {}, ".format(accuracy_out) + \
+                "test F1-score: {}".format(f1_score_out)
+            )
 
-        best_accuracy = max(best_accuracy, accuracy_out)
+            best_accuracy = max(best_accuracy, accuracy_out)
+            best_f1_score = max(best_f1_score, f1_score_out)
 
-    print("")
-    print("final test accuracy: {}".format(accuracy_out))
-    print("best epoch's test accuracy: {}".format(best_accuracy))
-    print("")
+        print("")
+        print("final test accuracy: {}".format(accuracy_out))
+        print("best epoch's test accuracy: {}".format(best_accuracy))
+        print("")
 
-    #------------------------------------------------------------------
-    # step5: Training is good, but having visual insight is even better
-    #------------------------------------------------------------------
-    # The code is in the .ipynb
-
-    #------------------------------------------------------------------
-    # step6: And finally, the multi-class confusion matrix and metrics!
-    #------------------------------------------------------------------
-    # The code is in the .ipynb
-
-    return accuracy_out, best_accuracy
+    # returning both final and bests accuracies and f1 scores.
+    return accuracy_out, best_accuracy, f1_score_out, best_f1_score
