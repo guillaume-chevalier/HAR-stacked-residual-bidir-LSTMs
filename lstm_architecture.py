@@ -92,7 +92,7 @@ def single_LSTM_cell(input_hidden_tensor, n_outputs):
                      shape: time_steps*[batch_size,n_outputs]
     """
     with tf.variable_scope("lstm_cell"):
-        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=0.995)
+        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=1.0)
         outputs, _ = tf.nn.rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
     return outputs
 
