@@ -19,7 +19,7 @@ We used TensorFlow 0.11 and Python 2.
 The two datasets can be loaded by running `python download_datasets.py` in the `data/` folder.
 
 
-## Results for the original UCI HAR dataset (from the [previous project](https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition))
+## Results using the previous UCI HAR dataset
 
 Classifying the type of movement amongst six categories:
 `(WALKING, WALKING_UPSTAIRS, WALKING_DOWNSTAIRS, SITTING, STANDING, LAYING)`. Run config with `python config_dataset_HAR_6_classes.py`.
