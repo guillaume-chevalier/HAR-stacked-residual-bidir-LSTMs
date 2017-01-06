@@ -162,12 +162,11 @@ for learning_rate in [0.001]:
                 self.n_layers_in_highway = n_layers_in_highway
                 self.n_stacked_layers = n_stacked_layers
 
-        accuracy_out, best_accuracy = run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
-        # TODO: F1 score
-        print (accuracy_out, best_accuracy)
+        accuracy_out, best_accuracy, f1_score_out, best_f1_score = run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
+        print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
         with open('{}_result_opportunity_18.txt'.format(trial_name),'a') as f:
-            f.write(str(learning_rate)+'\t'+str(lambda_loss_amount)+'\t'+str(accuracy_out)+'\t'+str(best_accuracy)+'\n\n')
+            f.write(str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(clip_gradients)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n')
 
         print "________________________________________________________"
     print ""
