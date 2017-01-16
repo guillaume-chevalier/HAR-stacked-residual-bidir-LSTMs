@@ -62,14 +62,11 @@ def select_columns_opp(data):
 
 
 def normalize(x):
-    """Normalizes all sensor channels
+    """Normalizes all sensor channels by mean substraction,
+    dividing by the standard deviation and by 2.
 
-    :param data: numpy integer matrix
+    :param x: numpy integer matrix
         Sensor data
-    :param max_list: numpy integer array
-        Array containing maximums values for every one of the 113 sensor channels
-    :param min_list: numpy integer array
-        Array containing minimum values for every one of the 113 sensor channels
     :return:
         Normalized sensor data
     """
@@ -203,6 +200,19 @@ def process_dataset_file(data, label):
 
 
 def load_data_files(zipped_dataset, label, data_files):
+    """Loads specified data files' features (x) and labels (y)
+
+    :param zipped_dataset: ZipFile
+        OPPORTUNITY zip file to read from
+    :param label: string, ['gestures' (default), 'locomotion']
+        Type of activities to be recognized. The OPPORTUNITY dataset includes several annotations to perform
+        recognition modes of locomotion/postures and recognition of sporadic gestures.
+    :param data_files: list of strings
+        Data files to load.
+    :return: numpy integer matrix, numy integer array
+        Loaded sensor data, segmented into features (x) and labels (y)
+    """
+
     data_x = np.empty((0, NB_SENSOR_CHANNELS))
     data_y = np.empty((0))
 
