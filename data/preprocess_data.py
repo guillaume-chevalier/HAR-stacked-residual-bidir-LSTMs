@@ -1,3 +1,4 @@
+# Adapted from: https://github.com/sussexwearlab/DeepConvLSTM
 __author__ = 'fjordonez'
 
 import os
@@ -13,55 +14,29 @@ from pandas import Series
 NB_SENSOR_CHANNELS = 113
 
 # Hardcoded names of the files defining the OPPORTUNITY challenge data. As named in the original data.
-OPPORTUNITY_DATA_FILES = ['OpportunityUCIDataset/dataset/S1-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL5.dat',
-                          'OpportunityUCIDataset/dataset/S2-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S3-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL5.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL5.dat'
-                          ]
+OPPORTUNITY_DATA_FILES_TRAIN = [
+    'OpportunityUCIDataset/dataset/S1-Drill.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL3.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL5.dat',
+    'OpportunityUCIDataset/dataset/S2-Drill.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL3.dat',
+    'OpportunityUCIDataset/dataset/S3-Drill.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL3.dat'
+]
 
-# Hardcoded thresholds to define global maximums and minimums for every one of the 113 sensor channels employed in the
-# OPPORTUNITY challenge
-NORM_MAX_THRESHOLDS = [3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       250,    25,     200,    5000,   5000,   5000,   5000,   5000,   5000,
-                       10000,  10000,  10000,  10000,  10000,  10000,  250,    250,    25,
-                       200,    5000,   5000,   5000,   5000,   5000,   5000,   10000,  10000,
-                       10000,  10000,  10000,  10000,  250, ]
-
-NORM_MIN_THRESHOLDS = [-3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -250,   -100,   -200,   -5000,  -5000,  -5000,  -5000,  -5000,  -5000,
-                       -10000, -10000, -10000, -10000, -10000, -10000, -250,   -250,   -100,
-                       -200,   -5000,  -5000,  -5000,  -5000,  -5000,  -5000,  -10000, -10000,
-                       -10000, -10000, -10000, -10000, -250, ]
+OPPORTUNITY_DATA_FILES_TEST = [
+    'OpportunityUCIDataset/dataset/S2-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL5.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL5.dat'
+]
 
 
 def select_columns_opp(data):
@@ -83,8 +58,10 @@ def select_columns_opp(data):
     features_delete = np.concatenate([features_delete, np.arange(244, 249)])
     return np.delete(data, features_delete, 1)
 
+    # Are accelerometers = np.array(list(range(2, 38)) + list(range(135, 195)) + list(range(208, 232)))
 
-def normalize(data, max_list, min_list):
+
+def normalize(x):
     """Normalizes all sensor channels
 
     :param data: numpy integer matrix
@@ -96,14 +73,13 @@ def normalize(data, max_list, min_list):
     :return:
         Normalized sensor data
     """
-    max_list, min_list = np.array(max_list), np.array(min_list)
-    diffs = max_list - min_list
-    for i in np.arange(data.shape[1]):
-        data[:, i] = (data[:, i]-min_list[i])/diffs[i]
-    #     Checking the boundaries
-    data[data > 1] = 0.99
-    data[data < 0] = 0.00
-    return data
+    x = np.array(x, dtype=np.float32)
+    m = np.mean(x, axis=0)
+    x -= m
+    std = np.std(x, axis=0)
+    std += 0.000001
+    x /= (std * 2)  # 2 is for having smaller values
+    return x
 
 
 def divide_x_y(data, label):
@@ -221,7 +197,26 @@ def process_dataset_file(data, label):
     data_x[np.isnan(data_x)] = 0
 
     # All sensor channels are normalized
-    data_x = normalize(data_x, NORM_MAX_THRESHOLDS, NORM_MIN_THRESHOLDS)
+    data_x = normalize(data_x)
+
+    return data_x, data_y
+
+
+def load_data_files(zipped_dataset, label, data_files):
+    data_x = np.empty((0, NB_SENSOR_CHANNELS))
+    data_y = np.empty((0))
+
+    for filename in data_files:
+        try:
+            data = np.loadtxt(BytesIO(zipped_dataset.read(filename)))
+            print '... file {0}'.format(filename)
+            x, y = process_dataset_file(data, label)
+            data_x = np.vstack((data_x, x))
+            data_y = np.concatenate([data_y, y])
+            print "Data's shape yet: "
+            print data_x.shape
+        except KeyError:
+            print 'ERROR: Did not find {0} in zip file'.format(filename)
 
     return data_x, data_y
 
@@ -239,29 +234,14 @@ def generate_data(dataset, target_filename, label):
     """
 
     data_dir = check_data(dataset)
-
-    data_x = np.empty((0, NB_SENSOR_CHANNELS))
-    data_y = np.empty((0))
-
     zf = zipfile.ZipFile(dataset)
-    print 'Processing dataset files ...'
-    for filename in OPPORTUNITY_DATA_FILES:
-        try:
-            data = np.loadtxt(BytesIO(zf.read(filename)))
-            print '... file {0}'.format(filename)
-            x, y = process_dataset_file(data, label)
-            data_x = np.vstack((data_x, x))
-            data_y = np.concatenate([data_y, y])
-        except KeyError:
-            print 'ERROR: Did not find {0} in zip file'.format(filename)
 
-    # Dataset is segmented into train and test
-    nb_training_samples = 557963
-    # The first 18 OPPORTUNITY data files define the traning dataset, comprising 557963 samples
-    X_train, y_train = data_x[:nb_training_samples,:], data_y[:nb_training_samples]
-    X_test, y_test = data_x[nb_training_samples:,:], data_y[nb_training_samples:]
+    print 'Processing train dataset files...'
+    X_train, y_train = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TRAIN)
+    print 'Processing test dataset files...'
+    X_test,  y_test  = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TEST)
 
-    print "Final datasets with size: | train {0} | test {1} | ".format(X_train.shape,X_test.shape)
+    print "Final datasets with size: | train {0} | test {1} | ".format(X_train.shape, X_test.shape)
 
     obj = [(X_train, y_train), (X_test, y_test)]
     f = file(os.path.join(data_dir, target_filename), 'wb')
