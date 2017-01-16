@@ -29,7 +29,7 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 500
+        self.training_epochs = 100
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
@@ -75,6 +75,7 @@ FINAL_SEQUENCE_LENGTH = 8
 
 # Hardcoded step of the sliding window mechanism employed to segment the data
 SLIDING_WINDOW_STEP = int(SLIDING_WINDOW_LENGTH/2)
+SLIDING_WINDOW_STEP_SHORT = 16
 
 # Batch Size
 BATCH_SIZE = 100
@@ -87,6 +88,7 @@ FILTER_SIZE = 5
 
 # Number of unit in the long short-term recurrent layers
 NUM_UNITS_LSTM = 128
+
 
 def load_dataset(filename):
 
@@ -116,22 +118,19 @@ assert NB_SENSOR_CHANNELS == X_train.shape[1]
 def opp_sliding_window(data_x, data_y, ws, ss):
     data_x = sliding_window(data_x,(ws,data_x.shape[1]),(ss,1))
     data_y = np.asarray([[i[-1]] for i in sliding_window(data_y,ws,ss)])
-    return data_x.astype(np.float32), data_y.reshape(len(data_y)).astype(np.uint8)
+    data_x, data_y = data_x.astype(np.float32), one_hot(data_y.reshape(len(data_y)).astype(np.uint8))
+    print(" ..after sliding window (testing): inputs {0}, targets {1}".format(X_test.shape, y_test.shape))
+    return data_x, data_y
 
 
 #--------------------------------------------
 # Loading dataset
 #--------------------------------------------
 
-# Sensor data is segmented using a sliding window mechanism
-X_test, y_test = opp_sliding_window(X_test, y_test, SLIDING_WINDOW_LENGTH, SLIDING_WINDOW_STEP)
-y_test = one_hot(y_test)
-print(" ..after sliding window (testing): inputs {0}, targets {1}".format(X_test.shape, y_test.shape))
 
 # Sensor data is segmented using a sliding window mechanism
+X_test, y_test = opp_sliding_window(X_test, y_test, SLIDING_WINDOW_LENGTH, SLIDING_WINDOW_STEP_SHORT)
 X_train, y_train = opp_sliding_window(X_train, y_train, SLIDING_WINDOW_LENGTH, SLIDING_WINDOW_STEP)
-y_train = one_hot(y_train)
-print(" ..after sliding window (testing): inputs {0}, targets {1}".format(X_train.shape, y_train.shape))
 
 for mat in [X_train, y_train, X_test, y_test]:
     print mat.shape
