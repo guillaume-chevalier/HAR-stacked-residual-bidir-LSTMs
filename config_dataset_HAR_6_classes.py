@@ -26,7 +26,7 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 100
+        self.training_epochs = 250
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
@@ -167,8 +167,8 @@ n_layers_in_highway = 2
 n_stacked_layers = 2
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
-for learning_rate in [0.01, 0.007, 0.001, 0.0007, 0.0001]:
-    for lambda_loss_amount in [0.005]:
+for learning_rate in [0.01]:  # [0.01, 0.007, 0.001, 0.0007, 0.0001]:
+    for lambda_loss_amount in [0.001]:
         for clip_gradients in [15.]:
             print "learning_rate: {}".format(learning_rate)
             print "lambda_loss_amount: {}".format(lambda_loss_amount)
