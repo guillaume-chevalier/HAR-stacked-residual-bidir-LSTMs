@@ -119,12 +119,12 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
     n_outputs = int(n_outputs/2)
 
     print "bidir:"
-    print (len(input_hidden_tensor), str(input_hidden_tensor[0].get_shape()))
 
     with tf.variable_scope('pass_forward') as scope2:
         hidden_forward = relu_fc(input_hidden_tensor, n_inputs, n_outputs, config)
         forward = single_LSTM_cell(hidden_forward, n_outputs)
 
+    print (len(hidden_forward), str(hidden_forward[0].get_shape()))
 
     # Backward pass is as simple as surrounding the cell with a double inversion:
     with tf.variable_scope('pass_backward') as scope2:
