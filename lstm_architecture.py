@@ -1,3 +1,4 @@
+import ntm_cell
 
 import tensorflow as tf
 from sklearn import metrics
@@ -187,7 +188,8 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
               : ndarray  output shape [batch_size, n_classes]
     """
 
-    with tf.variable_scope('LSTM_network') as scope:  # TensorFlow graph naming
+    # with tf.variable_scope('LSTM_network') as scope:  # TensorFlow graph naming
+    if True:
 
         feature_mat = tf.nn.dropout(feature_mat, keep_prob_for_dropout)
 
@@ -206,16 +208,37 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
         print (len(hidden), str(hidden[0].get_shape()))
         # New shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_hidden]
 
-        # Stacking LSTM cells, at least one is stacked:
-        print "\nCreating hidden #1:"
-        hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
-        print (len(hidden), str(hidden[0].get_shape()))
+        # # Stacking LSTM cells, at least one is stacked:
+        # print "\nCreating hidden #1:"
+        # hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
+        # print (len(hidden), str(hidden[0].get_shape()))
+        #
+        # for stacked_hidden_index in range(config.n_stacked_layers - 1):
+        #     # If the config permits it, we stack more lstm cells:
+        #     print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
+        #     hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config, keep_prob_for_dropout)
+        #     print (len(hidden), str(hidden[0].get_shape()))
 
-        for stacked_hidden_index in range(config.n_stacked_layers - 1):
-            # If the config permits it, we stack more lstm cells:
-            print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
-            hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config, keep_prob_for_dropout)
-            print (len(hidden), str(hidden[0].get_shape()))
+        with tf.variable_scope('fc1') as scope:  # TensorFlow graph naming
+            hidden = relu_fc(hidden, config.n_inputs, config.n_hidden, config)
+
+        import sys
+        import traceback
+        sys.setrecursionlimit(1500)
+        try:
+            cell = ntm_cell.NTMCell(input_dim=config.n_hidden, output_dim=config.n_hidden)
+            state = None
+            for input_at_a_timestep in hidden:
+                # Call on inputs of every time steps to keep only last output "h"
+                new_output, new_output_logit, state = cell(input_at_a_timestep, state)
+            # Mark the end of the sequence:
+            new_output, new_output_logit, state = cell((input_at_a_timestep-input_at_a_timestep), state)
+            h = new_output
+            return h
+            hidden = [h]
+        except:
+            _, _, tb = sys.exc_info()
+            print traceback.format_list(traceback.extract_tb(tb)[-1:])[-1]
 
         print ""
 
@@ -272,12 +295,12 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         print "Unregularised variables:"
         for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
             print unreg
-        l2 = config.lambda_loss_amount * \
-            sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables() if not ("noreg" in tf_var.name or "Bias" in tf_var.name))
+        # l2 = config.lambda_loss_amount * \
+        #     sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables() if not ("noreg" in tf_var.name or "Bias" in tf_var.name))
         # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
         # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
+            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y))  # + l2  # + l1
 
         # Gradient clipping Adam optimizer with gradient noise
         optimize = tf.contrib.layers.optimize_loss(
@@ -319,9 +342,9 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                         is_train: True
                     }
                 )
-            train_f1_score = metrics.f1_score(
-                shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
-            )
+            # train_f1_score = metrics.f1_score(
+            #     shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
+            # )
 
             # Test completely at every epoch: calculate accuracy
             pred_out, accuracy_out, loss_out = sess.run(
@@ -342,7 +365,7 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 "iter: {}, ".format(i) + \
                 "train loss: {}, ".format(train_loss) + \
                 "train accuracy: {}, ".format(train_acc) + \
-                "train F1-score: {}, ".format(train_f1_score) + \
+                # "train F1-score: {}, ".format(train_f1_score) + \
                 "test loss: {}, ".format(loss_out) + \
                 "test accuracy: {}, ".format(accuracy_out) + \
                 "test F1-score: {}".format(f1_score_out)
