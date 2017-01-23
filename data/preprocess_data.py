@@ -243,15 +243,12 @@ def process_dataset_file(data, label):
     )
     print "gyros' shape: {}".format(x_gyros.shape)
     print "old accelerometers' shape: {}".format(x_accms.shape)
-    x_accms = filter_opportunity_datasets_accelerometers(x_accms)
+    x_accms = normalize(filter_opportunity_datasets_accelerometers(x_accms))
     print "new accelerometers' shape: {}".format(x_accms.shape)
     # Put features together (inner concatenation with transposals)
 
     data_x = np.hstack([x_gyros, x_accms])
     print "new total shape: {}".format(data_x.shape)
-
-    assert np.average(np.isnan(data_x)) == 0.0, (
-        "Signal processing failed, it contains NaNs. This can happen with the current code when the cutoff frequency is too high.")
 
     return data_x, data_y
 

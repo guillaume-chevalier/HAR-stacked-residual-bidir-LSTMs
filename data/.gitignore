@@ -3,4 +3,5 @@ __MACOSX*
 .DS*
 oppChallenge_gestures.data
 OpportunityUCIDataset.zip
+*.data
 

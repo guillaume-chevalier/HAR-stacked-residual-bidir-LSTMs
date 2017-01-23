@@ -33,12 +33,11 @@ def filter_opportunity_datasets_accelerometers(accelerometer_data):
 
     new_channels = []
     for channel in accelerometer_data.transpose():
-        # LP to 0.3 Hz for splitting gravity component from body.
+        # LP filter to 0.3 Hz for splitting gravity component from body.
         gravity = butter_lowpass_filter(channel, 0.3, nyq_freq, order=3)
 
-        # We assume that body acc has lost its gravity componenent in plus of
-        # having an LP. Here we use an LP of 15 Hz, 20 Hz would be recommended.
-        body = butter_lowpass_filter(channel, 15.0, nyq_freq, order=3)
+        body = channel
+        # We assume that body acc has lost its gravity componenent
         body -= gravity
 
         new_channels.append(body)
