@@ -14,9 +14,11 @@ Another dataset also has been tested, see subtitles below.
 
 ## Setup
 
-We used TensorFlow 0.11 and Python 2.
+We used TensorFlow 0.11 and Python 2. Sklearn is also used. 
 
 The two datasets can be loaded by running `python download_datasets.py` in the `data/` folder.
+
+To preprocess the second dataset (opportunity challenge dataset), you will need the signal submodule of scipy, and pandas.
 
 
 ## Results using the previous UCI HAR dataset

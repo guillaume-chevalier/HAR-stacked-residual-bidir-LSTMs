@@ -1,3 +1,4 @@
+__author__ = 'gchevalier'
 
 import tensorflow as tf
 from sklearn import metrics
@@ -272,8 +273,11 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         print "Unregularised variables:"
         for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
             print unreg
-        l2 = config.lambda_loss_amount * \
-            sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables() if not ("noreg" in tf_var.name or "Bias" in tf_var.name))
+        l2 = config.lambda_loss_amount * sum(
+            tf.nn.l2_loss(tf_var)
+                for tf_var in tf.trainable_variables()
+                if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
+        )
         # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
         # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
         loss = tf.reduce_mean(

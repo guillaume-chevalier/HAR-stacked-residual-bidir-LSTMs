@@ -26,7 +26,7 @@ class Config(object):
         # Training
         self.learning_rate = 0.001
         self.lambda_loss_amount = 0.005
-        self.training_epochs = 100
+        self.training_epochs = 250
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None

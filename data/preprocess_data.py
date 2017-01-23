@@ -1,5 +1,7 @@
 # Adapted from: https://github.com/sussexwearlab/DeepConvLSTM
-__author__ = 'fjordonez'
+__author__ = 'fjordonez, gchevalier'
+
+from signal_filtering import filter_opportunity_datasets_accelerometers
 
 import os
 import zipfile
@@ -12,6 +14,7 @@ from pandas import Series
 
 # Hardcoded number of sensor channels employed in the OPPORTUNITY challenge
 NB_SENSOR_CHANNELS = 113
+NB_SENSOR_CHANNELS_WITH_FILTERING = 149 # =77 gyros +36*2 accelerometer channels
 
 # Hardcoded names of the files defining the OPPORTUNITY challenge data. As named in the original data.
 OPPORTUNITY_DATA_FILES_TRAIN = [
@@ -38,17 +41,16 @@ OPPORTUNITY_DATA_FILES_TEST = [
     'OpportunityUCIDataset/dataset/S3-ADL5.dat'
 ]
 
-
 def select_columns_opp(data):
     """Selection of the 113 columns employed in the OPPORTUNITY challenge
 
     :param data: numpy integer matrix
         Sensor data (all features)
-    :return: numpy integer matrix
-        Selection of features
+    :return: tuple((numpy integer 2D matrix, numpy integer 1D matrix))
+        (Selection of features (N, f), feature_is_accelerometer (f,) one-hot)
     """
 
-    #                     included-excluded
+    # In term of column_names.txt's ranges: excluded-included (here 0-indexed)
     features_delete = np.arange(46, 50)
     features_delete = np.concatenate([features_delete, np.arange(59, 63)])
     features_delete = np.concatenate([features_delete, np.arange(72, 76)])
@@ -56,9 +58,32 @@ def select_columns_opp(data):
     features_delete = np.concatenate([features_delete, np.arange(98, 102)])
     features_delete = np.concatenate([features_delete, np.arange(134, 243)])
     features_delete = np.concatenate([features_delete, np.arange(244, 249)])
-    return np.delete(data, features_delete, 1)
 
-    # Are accelerometers = np.array(list(range(2, 38)) + list(range(135, 195)) + list(range(208, 232)))
+    # In term of column_names.txt's ranges: excluded-included
+    features_delete = np.arange(46, 50)
+    features_delete = np.concatenate([features_delete, np.arange(59, 63)])
+    features_delete = np.concatenate([features_delete, np.arange(72, 76)])
+    features_delete = np.concatenate([features_delete, np.arange(85, 89)])
+    features_delete = np.concatenate([features_delete, np.arange(98, 102)])
+    features_delete = np.concatenate([features_delete, np.arange(134, 243)])
+    features_delete = np.concatenate([features_delete, np.arange(244, 249)])
+
+    # In term of column_names.txt's ranges: excluded-included
+    features_acc = np.arange(1, 37)
+    features_acc = np.concatenate([features_acc, np.arange(134, 194)])
+    features_acc = np.concatenate([features_acc, np.arange(207, 231)])
+
+    # One-hot for everything that is an accelerometer
+    is_accelerometer = np.zeros([243])
+    is_accelerometer[features_acc] = 1
+
+    # Deleting some signals to keep only the 113 of the challenge
+    data = np.delete(data, features_delete, 1)
+    is_accelerometer = np.delete(is_accelerometer, features_delete, 0)
+
+    # Shape `(N, f), (f, )`
+    # where N is number of timesteps and f is 113 features, one-hot
+    return data, is_accelerometer
 
 
 def normalize(x):
@@ -78,9 +103,23 @@ def normalize(x):
     x /= (std * 2)  # 2 is for having smaller values
     return x
 
+def split_data_into_time_gyros_accelerometers(data, is_accelerometer):
+    # Assuming index 0 of features is reserved for time.
+    # Splitting data into gyros, accelerometers and time:
+
+    is_accelerometer = np.array(is_accelerometer*2-1, dtype=np.int32)
+    # is_accelerometer's zeros have been replaced by -1. 1's are untouched.
+    plane = np.arange(len(is_accelerometer)) * is_accelerometer
+    delete_gyros = [-e for e in plane if e <= 0]
+    delete_accms = [ e for e in plane if e >= 0]
+
+    time  = data[:,0]
+    gyros = np.delete(data, delete_accms, 1)
+    accms = np.delete(data, delete_gyros, 1)
+    return time, gyros, accms
 
 def divide_x_y(data, label):
-    """Segments each sample into features and label
+    """Segments each sample into (time+features) and (label)
 
     :param data: numpy integer matrix
         Sensor data
@@ -89,8 +128,9 @@ def divide_x_y(data, label):
     :return: numpy integer matrix, numpy integer array
         Features encapsulated into a matrix and labels as an array
     """
+    data_x = data[:, :114]
 
-    data_x = data[:, 1:114]
+    # Choose labels type for y
     if label not in ['locomotion', 'gestures']:
             raise RuntimeError("Invalid label: '%s'" % label)
     if label == 'locomotion':
@@ -180,21 +220,38 @@ def process_dataset_file(data, label):
     """
 
     # Select correct columns
-    data = select_columns_opp(data)
+    data, is_accelerometer = select_columns_opp(data)
 
     # Colums are segmentd into features and labels
     data_x, data_y =  divide_x_y(data, label)
     data_y = adjust_idx_labels(data_y, label)
     data_y = data_y.astype(int)
 
-    # Perform linear interpolation
+    # Perform linear interpolation (a.k.a. filling in NaN)
     data_x = np.array([Series(i).interpolate() for i in data_x.T]).T
-
     # Remaining missing data are converted to zero
     data_x[np.isnan(data_x)] = 0
 
     # All sensor channels are normalized
     data_x = normalize(data_x)
+
+    # x's accelerometers, are filtered out by some LP passes for noise and gravity.
+    # Time is discarded, accelerometers are filtered to
+    # split gravity and remove noise.
+    _, x_gyros, x_accms = split_data_into_time_gyros_accelerometers(
+        data_x, is_accelerometer
+    )
+    print "gyros' shape: {}".format(x_gyros.shape)
+    print "old accelerometers' shape: {}".format(x_accms.shape)
+    x_accms = filter_opportunity_datasets_accelerometers(x_accms)
+    print "new accelerometers' shape: {}".format(x_accms.shape)
+    # Put features together (inner concatenation with transposals)
+
+    data_x = np.hstack([x_gyros, x_accms])
+    print "new total shape: {}".format(data_x.shape)
+
+    assert np.average(np.isnan(data_x)) == 0.0, (
+        "Signal processing failed, it contains NaNs. This can happen with the current code when the cutoff frequency is too high.")
 
     return data_x, data_y
 
@@ -213,7 +270,7 @@ def load_data_files(zipped_dataset, label, data_files):
         Loaded sensor data, segmented into features (x) and labels (y)
     """
 
-    data_x = np.empty((0, NB_SENSOR_CHANNELS))
+    data_x = np.empty((0, NB_SENSOR_CHANNELS_WITH_FILTERING))
     data_y = np.empty((0))
 
     for filename in data_files:
@@ -246,9 +303,9 @@ def generate_data(dataset, target_filename, label):
     data_dir = check_data(dataset)
     zf = zipfile.ZipFile(dataset)
 
-    print 'Processing train dataset files...'
+    print '\nProcessing train dataset files...\n'
     X_train, y_train = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TRAIN)
-    print 'Processing test dataset files...'
+    print '\nProcessing test dataset files...\n'
     X_test,  y_test  = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TEST)
 
     print "Final datasets with size: | train {0} | test {1} | ".format(X_train.shape, X_test.shape)
