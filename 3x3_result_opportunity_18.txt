@@ -1,0 +1,3 @@
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.861208 	(0.89142162, 'iter: 33') 	0.86664580735 	(0.88707008432775813, 'iter: 33')
+
