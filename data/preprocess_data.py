@@ -118,7 +118,7 @@ def split_data_into_time_gyros_accelerometers(data, is_accelerometer):
     accms = np.delete(data, delete_gyros, 1)
     return time, gyros, accms
 
-def divide_x_y(data, label):
+def divide_x_y(data, label, filter_accelerometers):
     """Segments each sample into (time+features) and (label)
 
     :param data: numpy integer matrix
@@ -128,7 +128,10 @@ def divide_x_y(data, label):
     :return: numpy integer matrix, numpy integer array
         Features encapsulated into a matrix and labels as an array
     """
-    data_x = data[:, :114]
+    if filter_accelerometers:
+        data_x = data[:, :114]
+    else:
+        data_x = data[:,1:114]
 
     # Choose labels type for y
     if label not in ['locomotion', 'gestures']:
@@ -208,7 +211,7 @@ def check_data(data_set):
     return data_dir
 
 
-def process_dataset_file(data, label):
+def process_dataset_file(data, label, filter_accelerometers):
     """Function defined as a pipeline to process individual OPPORTUNITY files
 
     :param data: numpy integer matrix
@@ -223,7 +226,7 @@ def process_dataset_file(data, label):
     data, is_accelerometer = select_columns_opp(data)
 
     # Colums are segmentd into features and labels
-    data_x, data_y =  divide_x_y(data, label)
+    data_x, data_y =  divide_x_y(data, label, filter_accelerometers)
     data_y = adjust_idx_labels(data_y, label)
     data_y = data_y.astype(int)
 
@@ -235,25 +238,26 @@ def process_dataset_file(data, label):
     # All sensor channels are normalized
     data_x = normalize(data_x)
 
-    # x's accelerometers, are filtered out by some LP passes for noise and gravity.
-    # Time is discarded, accelerometers are filtered to
-    # split gravity and remove noise.
-    _, x_gyros, x_accms = split_data_into_time_gyros_accelerometers(
-        data_x, is_accelerometer
-    )
-    print "gyros' shape: {}".format(x_gyros.shape)
-    print "old accelerometers' shape: {}".format(x_accms.shape)
-    x_accms = normalize(filter_opportunity_datasets_accelerometers(x_accms))
-    print "new accelerometers' shape: {}".format(x_accms.shape)
-    # Put features together (inner concatenation with transposals)
+    if filter_accelerometers:
+        # x's accelerometers, are filtered out by some LP passes for noise and gravity.
+        # Time is discarded, accelerometers are filtered to
+        # split gravity and remove noise.
+        _, x_gyros, x_accms = split_data_into_time_gyros_accelerometers(
+            data_x, is_accelerometer
+        )
+        print "gyros' shape: {}".format(x_gyros.shape)
+        print "old accelerometers' shape: {}".format(x_accms.shape)
+        x_accms = normalize(filter_opportunity_datasets_accelerometers(x_accms))
+        print "new accelerometers' shape: {}".format(x_accms.shape)
+        # Put features together (inner concatenation with transposals)
 
-    data_x = np.hstack([x_gyros, x_accms])
-    print "new total shape: {}".format(data_x.shape)
+        data_x = np.hstack([x_gyros, x_accms])
+        print "new total shape: {}".format(data_x.shape)
 
     return data_x, data_y
 
 
-def load_data_files(zipped_dataset, label, data_files):
+def load_data_files(zipped_dataset, label, data_files, filter_accelerometers=False):
     """Loads specified data files' features (x) and labels (y)
 
     :param zipped_dataset: ZipFile
@@ -267,14 +271,15 @@ def load_data_files(zipped_dataset, label, data_files):
         Loaded sensor data, segmented into features (x) and labels (y)
     """
 
-    data_x = np.empty((0, NB_SENSOR_CHANNELS_WITH_FILTERING))
+    nb_sensors = NB_SENSOR_CHANNELS_WITH_FILTERING if filter_accelerometers else NB_SENSOR_CHANNELS
+    data_x = np.empty((0, nb_sensors))
     data_y = np.empty((0))
 
     for filename in data_files:
         try:
             data = np.loadtxt(BytesIO(zipped_dataset.read(filename)))
             print '... file {0}'.format(filename)
-            x, y = process_dataset_file(data, label)
+            x, y = process_dataset_file(data, label, filter_accelerometers)
             data_x = np.vstack((data_x, x))
             data_y = np.concatenate([data_y, y])
             print "Data's shape yet: "

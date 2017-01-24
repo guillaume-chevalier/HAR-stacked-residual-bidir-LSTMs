@@ -115,7 +115,8 @@ def load_dataset(filename):
 print("Loading data...")
 X_train, y_train, X_test, y_test = load_dataset('data/oppChallenge_gestures.data')
 
-assert NB_SENSOR_CHANNELS_WITH_FILTERING == X_train.shape[1]
+assert (NB_SENSOR_CHANNELS_WITH_FILTERING == X_train.shape[1] or NB_SENSOR_CHANNELS == X_train.shape[1])
+
 def opp_sliding_window(data_x, data_y, ws, ss):
     data_x = sliding_window(data_x,(ws,data_x.shape[1]),(ss,1))
     data_y = np.asarray([[i[-1]] for i in sliding_window(data_y,ws,ss)])

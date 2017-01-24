@@ -305,8 +305,8 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
     with tf.Session(config=sessconfig) as sess:
         tf.initialize_all_variables().run()
 
-        best_accuracy = 0.0
-        best_f1_score = 0.0
+        best_accuracy = (0.0, "iter: -1")
+        best_f1_score = (0.0, "iter: -1")
 
         # Start training for each batch and loop epochs
 
@@ -377,8 +377,8 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 "test F1-score: {}".format(f1_score_out)
             )
 
-            best_accuracy = max(best_accuracy, accuracy_out)
-            best_f1_score = max(best_f1_score, f1_score_out)
+            best_accuracy = max(best_accuracy, (accuracy_out, "iter: {}".format(i)))
+            best_f1_score = max(best_f1_score, (f1_score_out, "iter: {}".format(i)))
 
         print("")
         print("final test accuracy: {}".format(accuracy_out))
