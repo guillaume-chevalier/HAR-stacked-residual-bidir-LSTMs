@@ -32,7 +32,7 @@ class Config(object):
         self.gradient_noise_scale = None
         # Dropout is added on inputs and after each stacked layers (but not
         # between residual layers).
-        self.keep_prob_for_dropout = 0.85
+        self.keep_prob_for_dropout = 0.85**(1/3.0)
 
         # Linear+relu structure
         self.bias_mean = 0.3
@@ -54,7 +54,7 @@ class Config(object):
         self.use_bidirectionnal_cells = False
 
         # High-level deep architecture
-        self.also_add_dropout_between_stacked_cells = False
+        self.also_add_dropout_between_stacked_cells = True
         # NOTE: values of exactly 1 (int) for those 2 high-level parameters below totally disables them and result in only 1 starting LSTM.
         # self.n_layers_in_highway = 1  # Number of residual connections to the LSTMs (highway-style), this is did for each stacked block (inside them).
         # self.n_stacked_layers = 1  # Stack multiple blocks of residual

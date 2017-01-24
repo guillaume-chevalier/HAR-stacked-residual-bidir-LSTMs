@@ -309,8 +309,12 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         best_f1_score = 0.0
 
         # Start training for each batch and loop epochs
+
+        worst_batches = []
+
         for i in range(config.training_epochs):
 
+            # Loop batches for an epoch:
             shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
             for start, end in zip(range(0, config.train_count, config.batch_size),
                                   range(config.batch_size, config.train_count + 1, config.batch_size)):
@@ -323,11 +327,31 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                         is_train: True
                     }
                 )
+
+                worst_batches.append(
+                    (train_loss, shuffled_X[start:end], shuffled_y[start:end])
+                )
+                worst_batches = list(sorted(worst_batches))[-5:]  # Keep 5 poorest
+
+            # Retrain on top worst batches of this epoch (boosting):
+            # a.k.a. "focus on the hardest exercises while training":
+            for _, x_, y_ in worst_batches:
+
+                _, train_acc, train_loss, train_pred = sess.run(
+                    [optimize, accuracy, loss, pred_y],
+                    feed_dict={
+                        X: x_,
+                        Y: y_,
+                        is_train: True
+                    }
+                )
+
             train_f1_score = metrics.f1_score(
                 shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
             )
 
-            # Test completely at every epoch: calculate accuracy
+            # Test completely at the end of every epoch:
+            # Calculate accuracy and F1 score
             pred_out, accuracy_out, loss_out = sess.run(
                 [pred_y, accuracy, loss],
                 feed_dict={

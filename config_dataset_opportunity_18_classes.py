@@ -33,7 +33,7 @@ class Config(object):
         self.batch_size = 100
         self.clip_gradients = 15.0
         self.gradient_noise_scale = None
-        self.keep_prob_for_dropout = 0.85  # Dropout is added on inputs and after each stacked layers (but not between residual layers).
+        self.keep_prob_for_dropout = 0.85**(1/3.0)  # Dropout is added on inputs and after each stacked layers (but not between residual layers).
 
         # Linear+relu structure
         self.bias_mean = 0.3
@@ -51,7 +51,7 @@ class Config(object):
         self.use_bidirectionnal_cells = True  # Use bidir in every LSTM cell, or not:
 
         # High-level deep architecture
-        self.also_add_dropout_between_stacked_cells = False
+        self.also_add_dropout_between_stacked_cells = True
         # NOTE: values of exactly 1 (int) for those 2 high-level parameters below totally disables them and result in only 1 starting LSTM.
         # self.n_layers_in_highway = 1  # Number of residual connections to the LSTMs (highway-style), this is did for each stacked block (inside them).
         # self.n_stacked_layers = 1  # Stack multiple blocks of residual layers.
@@ -166,7 +166,8 @@ for learning_rate in [0.001]:
         print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
         with open('{}_result_opportunity_18.txt'.format(trial_name),'a') as f:
-            f.write(str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(clip_gradients)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n')
+            f.write("""str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)\n""")
+            f.write(   str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n' )
 
         print "________________________________________________________"
     print ""
