@@ -333,6 +333,11 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 )
                 worst_batches = list(sorted(worst_batches))[-5:]  # Keep 5 poorest
 
+            # Train F1 score is not on boosting
+            train_f1_score = metrics.f1_score(
+                shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
+            )
+
             # Retrain on top worst batches of this epoch (boosting):
             # a.k.a. "focus on the hardest exercises while training":
             for _, x_, y_ in worst_batches:
@@ -345,10 +350,6 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                         is_train: True
                     }
                 )
-
-            train_f1_score = metrics.f1_score(
-                shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
-            )
 
             # Test completely at the end of every epoch:
             # Calculate accuracy and F1 score
