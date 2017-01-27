@@ -12,3 +12,26 @@ str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(n_hidden)+' 	'+str(accu
 
 str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(n_hidden)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
 0.001 	0.005 	256 	0.871459	(0.88589155, 'iter: 50') 	0.869258934278 	(0.882839989028, 'iter: 44')
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.1 	0.843135 	(0.85352039, 'iter: 36') 	0.790921583826 	(0.79696809083851672, 'iter: 28')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.3 	0.840167 	(0.87550581, 'iter: 91') 	0.83783592693 	(0.86934371222182871, 'iter: 84')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.5 	0.880766 	(0.89317507, 'iter: 86') 	0.875196543679 	(0.89038782602386657, 'iter: 88')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.6 	0.837874 	(0.8889938, 'iter: 25') 	0.846625554326 	(0.88152944420842994, 'iter: 71')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.7 	0.879552 	(0.88953334, 'iter: 39') 	0.879483389001 	(0.8892230696411505, 'iter: 48')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.8 	0.878069 	(0.88656598, 'iter: 45') 	0.87467315025 	(0.88383185403210007, 'iter: 45')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.001 	0.005 	0.9 	0.848125 	(0.89034259, 'iter: 89') 	0.860522935038 	(0.88601266217116537, 'iter: 54')
+
