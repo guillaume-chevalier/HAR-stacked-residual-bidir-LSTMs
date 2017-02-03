@@ -1,4 +1,7 @@
-__author__ = 'fjordonez'
+# Adapted from: https://github.com/sussexwearlab/DeepConvLSTM
+__author__ = 'fjordonez, gchevalier'
+
+from signal_filtering import filter_opportunity_datasets_accelerometers
 
 import os
 import zipfile
@@ -11,69 +14,43 @@ from pandas import Series
 
 # Hardcoded number of sensor channels employed in the OPPORTUNITY challenge
 NB_SENSOR_CHANNELS = 113
+NB_SENSOR_CHANNELS_WITH_FILTERING = 149 # =77 gyros +36*2 accelerometer channels
 
 # Hardcoded names of the files defining the OPPORTUNITY challenge data. As named in the original data.
-OPPORTUNITY_DATA_FILES = ['OpportunityUCIDataset/dataset/S1-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S1-ADL5.dat',
-                          'OpportunityUCIDataset/dataset/S2-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S3-Drill.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL1.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL2.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL3.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S2-ADL5.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL4.dat',
-                          'OpportunityUCIDataset/dataset/S3-ADL5.dat'
-                          ]
+OPPORTUNITY_DATA_FILES_TRAIN = [
+    'OpportunityUCIDataset/dataset/S1-Drill.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL3.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S1-ADL5.dat',
+    'OpportunityUCIDataset/dataset/S2-Drill.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL3.dat',
+    'OpportunityUCIDataset/dataset/S3-Drill.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL1.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL2.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL3.dat'
+]
 
-# Hardcoded thresholds to define global maximums and minimums for every one of the 113 sensor channels employed in the
-# OPPORTUNITY challenge
-NORM_MAX_THRESHOLDS = [3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,   3000,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       3000,   3000,   3000,   10000,  10000,  10000,  1500,   1500,   1500,
-                       250,    25,     200,    5000,   5000,   5000,   5000,   5000,   5000,
-                       10000,  10000,  10000,  10000,  10000,  10000,  250,    250,    25,
-                       200,    5000,   5000,   5000,   5000,   5000,   5000,   10000,  10000,
-                       10000,  10000,  10000,  10000,  250, ]
-
-NORM_MIN_THRESHOLDS = [-3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,  -3000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -3000,  -3000,  -3000,  -10000, -10000, -10000, -1000,  -1000,  -1000,
-                       -250,   -100,   -200,   -5000,  -5000,  -5000,  -5000,  -5000,  -5000,
-                       -10000, -10000, -10000, -10000, -10000, -10000, -250,   -250,   -100,
-                       -200,   -5000,  -5000,  -5000,  -5000,  -5000,  -5000,  -10000, -10000,
-                       -10000, -10000, -10000, -10000, -250, ]
-
+OPPORTUNITY_DATA_FILES_TEST = [
+    'OpportunityUCIDataset/dataset/S2-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S2-ADL5.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL4.dat',
+    'OpportunityUCIDataset/dataset/S3-ADL5.dat'
+]
 
 def select_columns_opp(data):
     """Selection of the 113 columns employed in the OPPORTUNITY challenge
 
     :param data: numpy integer matrix
         Sensor data (all features)
-    :return: numpy integer matrix
-        Selection of features
+    :return: tuple((numpy integer 2D matrix, numpy integer 1D matrix))
+        (Selection of features (N, f), feature_is_accelerometer (f,) one-hot)
     """
 
-    #                     included-excluded
+    # In term of column_names.txt's ranges: excluded-included (here 0-indexed)
     features_delete = np.arange(46, 50)
     features_delete = np.concatenate([features_delete, np.arange(59, 63)])
     features_delete = np.concatenate([features_delete, np.arange(72, 76)])
@@ -81,33 +58,68 @@ def select_columns_opp(data):
     features_delete = np.concatenate([features_delete, np.arange(98, 102)])
     features_delete = np.concatenate([features_delete, np.arange(134, 243)])
     features_delete = np.concatenate([features_delete, np.arange(244, 249)])
-    return np.delete(data, features_delete, 1)
+
+    # In term of column_names.txt's ranges: excluded-included
+    features_delete = np.arange(46, 50)
+    features_delete = np.concatenate([features_delete, np.arange(59, 63)])
+    features_delete = np.concatenate([features_delete, np.arange(72, 76)])
+    features_delete = np.concatenate([features_delete, np.arange(85, 89)])
+    features_delete = np.concatenate([features_delete, np.arange(98, 102)])
+    features_delete = np.concatenate([features_delete, np.arange(134, 243)])
+    features_delete = np.concatenate([features_delete, np.arange(244, 249)])
+
+    # In term of column_names.txt's ranges: excluded-included
+    features_acc = np.arange(1, 37)
+    features_acc = np.concatenate([features_acc, np.arange(134, 194)])
+    features_acc = np.concatenate([features_acc, np.arange(207, 231)])
+
+    # One-hot for everything that is an accelerometer
+    is_accelerometer = np.zeros([243])
+    is_accelerometer[features_acc] = 1
+
+    # Deleting some signals to keep only the 113 of the challenge
+    data = np.delete(data, features_delete, 1)
+    is_accelerometer = np.delete(is_accelerometer, features_delete, 0)
+
+    # Shape `(N, f), (f, )`
+    # where N is number of timesteps and f is 113 features, one-hot
+    return data, is_accelerometer
 
 
-def normalize(data, max_list, min_list):
-    """Normalizes all sensor channels
+def normalize(x):
+    """Normalizes all sensor channels by mean substraction,
+    dividing by the standard deviation and by 2.
 
-    :param data: numpy integer matrix
+    :param x: numpy integer matrix
         Sensor data
-    :param max_list: numpy integer array
-        Array containing maximums values for every one of the 113 sensor channels
-    :param min_list: numpy integer array
-        Array containing minimum values for every one of the 113 sensor channels
     :return:
         Normalized sensor data
     """
-    max_list, min_list = np.array(max_list), np.array(min_list)
-    diffs = max_list - min_list
-    for i in np.arange(data.shape[1]):
-        data[:, i] = (data[:, i]-min_list[i])/diffs[i]
-    #     Checking the boundaries
-    data[data > 1] = 0.99
-    data[data < 0] = 0.00
-    return data
+    x = np.array(x, dtype=np.float32)
+    m = np.mean(x, axis=0)
+    x -= m
+    std = np.std(x, axis=0)
+    std += 0.000001
+    x /= (std * 2)  # 2 is for having smaller values
+    return x
 
+def split_data_into_time_gyros_accelerometers(data, is_accelerometer):
+    # Assuming index 0 of features is reserved for time.
+    # Splitting data into gyros, accelerometers and time:
 
-def divide_x_y(data, label):
-    """Segments each sample into features and label
+    is_accelerometer = np.array(is_accelerometer*2-1, dtype=np.int32)
+    # is_accelerometer's zeros have been replaced by -1. 1's are untouched.
+    plane = np.arange(len(is_accelerometer)) * is_accelerometer
+    delete_gyros = [-e for e in plane if e <= 0]
+    delete_accms = [ e for e in plane if e >= 0]
+
+    time  = data[:,0]
+    gyros = np.delete(data, delete_accms, 1)
+    accms = np.delete(data, delete_gyros, 1)
+    return time, gyros, accms
+
+def divide_x_y(data, label, filter_accelerometers):
+    """Segments each sample into (time+features) and (label)
 
     :param data: numpy integer matrix
         Sensor data
@@ -116,8 +128,12 @@ def divide_x_y(data, label):
     :return: numpy integer matrix, numpy integer array
         Features encapsulated into a matrix and labels as an array
     """
+    if filter_accelerometers:
+        data_x = data[:, :114]
+    else:
+        data_x = data[:,1:114]
 
-    data_x = data[:, 1:114]
+    # Choose labels type for y
     if label not in ['locomotion', 'gestures']:
             raise RuntimeError("Invalid label: '%s'" % label)
     if label == 'locomotion':
@@ -195,7 +211,7 @@ def check_data(data_set):
     return data_dir
 
 
-def process_dataset_file(data, label):
+def process_dataset_file(data, label, filter_accelerometers):
     """Function defined as a pipeline to process individual OPPORTUNITY files
 
     :param data: numpy integer matrix
@@ -207,21 +223,69 @@ def process_dataset_file(data, label):
     """
 
     # Select correct columns
-    data = select_columns_opp(data)
+    data, is_accelerometer = select_columns_opp(data)
 
     # Colums are segmentd into features and labels
-    data_x, data_y =  divide_x_y(data, label)
+    data_x, data_y =  divide_x_y(data, label, filter_accelerometers)
     data_y = adjust_idx_labels(data_y, label)
     data_y = data_y.astype(int)
 
-    # Perform linear interpolation
+    # Perform linear interpolation (a.k.a. filling in NaN)
     data_x = np.array([Series(i).interpolate() for i in data_x.T]).T
-
     # Remaining missing data are converted to zero
     data_x[np.isnan(data_x)] = 0
 
     # All sensor channels are normalized
-    data_x = normalize(data_x, NORM_MAX_THRESHOLDS, NORM_MIN_THRESHOLDS)
+    data_x = normalize(data_x)
+
+    if filter_accelerometers:
+        # x's accelerometers, are filtered out by some LP passes for noise and gravity.
+        # Time is discarded, accelerometers are filtered to
+        # split gravity and remove noise.
+        _, x_gyros, x_accms = split_data_into_time_gyros_accelerometers(
+            data_x, is_accelerometer
+        )
+        print "gyros' shape: {}".format(x_gyros.shape)
+        print "old accelerometers' shape: {}".format(x_accms.shape)
+        x_accms = normalize(filter_opportunity_datasets_accelerometers(x_accms))
+        print "new accelerometers' shape: {}".format(x_accms.shape)
+        # Put features together (inner concatenation with transposals)
+
+        data_x = np.hstack([x_gyros, x_accms])
+        print "new total shape: {}".format(data_x.shape)
+
+    return data_x, data_y
+
+
+def load_data_files(zipped_dataset, label, data_files, filter_accelerometers=False):
+    """Loads specified data files' features (x) and labels (y)
+
+    :param zipped_dataset: ZipFile
+        OPPORTUNITY zip file to read from
+    :param label: string, ['gestures' (default), 'locomotion']
+        Type of activities to be recognized. The OPPORTUNITY dataset includes several annotations to perform
+        recognition modes of locomotion/postures and recognition of sporadic gestures.
+    :param data_files: list of strings
+        Data files to load.
+    :return: numpy integer matrix, numy integer array
+        Loaded sensor data, segmented into features (x) and labels (y)
+    """
+
+    nb_sensors = NB_SENSOR_CHANNELS_WITH_FILTERING if filter_accelerometers else NB_SENSOR_CHANNELS
+    data_x = np.empty((0, nb_sensors))
+    data_y = np.empty((0))
+
+    for filename in data_files:
+        try:
+            data = np.loadtxt(BytesIO(zipped_dataset.read(filename)))
+            print '... file {0}'.format(filename)
+            x, y = process_dataset_file(data, label, filter_accelerometers)
+            data_x = np.vstack((data_x, x))
+            data_y = np.concatenate([data_y, y])
+            print "Data's shape yet: "
+            print data_x.shape
+        except KeyError:
+            print 'ERROR: Did not find {0} in zip file'.format(filename)
 
     return data_x, data_y
 
@@ -239,29 +303,14 @@ def generate_data(dataset, target_filename, label):
     """
 
     data_dir = check_data(dataset)
-
-    data_x = np.empty((0, NB_SENSOR_CHANNELS))
-    data_y = np.empty((0))
-
     zf = zipfile.ZipFile(dataset)
-    print 'Processing dataset files ...'
-    for filename in OPPORTUNITY_DATA_FILES:
-        try:
-            data = np.loadtxt(BytesIO(zf.read(filename)))
-            print '... file {0}'.format(filename)
-            x, y = process_dataset_file(data, label)
-            data_x = np.vstack((data_x, x))
-            data_y = np.concatenate([data_y, y])
-        except KeyError:
-            print 'ERROR: Did not find {0} in zip file'.format(filename)
 
-    # Dataset is segmented into train and test
-    nb_training_samples = 557963
-    # The first 18 OPPORTUNITY data files define the traning dataset, comprising 557963 samples
-    X_train, y_train = data_x[:nb_training_samples,:], data_y[:nb_training_samples]
-    X_test, y_test = data_x[nb_training_samples:,:], data_y[nb_training_samples:]
+    print '\nProcessing train dataset files...\n'
+    X_train, y_train = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TRAIN)
+    print '\nProcessing test dataset files...\n'
+    X_test,  y_test  = load_data_files(zf, label, OPPORTUNITY_DATA_FILES_TEST)
 
-    print "Final datasets with size: | train {0} | test {1} | ".format(X_train.shape,X_test.shape)
+    print "Final datasets with size: | train {0} | test {1} | ".format(X_train.shape, X_test.shape)
 
     obj = [(X_train, y_train), (X_test, y_test)]
     f = file(os.path.join(data_dir, target_filename), 'wb')

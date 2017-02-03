@@ -1,3 +1,4 @@
+__author__ = 'gchevalier'
 
 import tensorflow as tf
 from sklearn import metrics
@@ -19,7 +20,7 @@ def one_hot(y):
     return np.eye(n_values)[np.array(y, dtype=np.int32)]  # Returns FLOATS
 
 
-def batch_norm(input_tensor, config):
+def batch_norm(input_tensor, config, i):
     # Implementing batch normalisation: this is used out of the residual layers
     # to normalise those output neurons by mean and standard deviation.
 
@@ -28,7 +29,11 @@ def batch_norm(input_tensor, config):
         return input_tensor
 
     with tf.variable_scope("batch_norm") as scope:
-        # Mean and variance simply crunched over all axes
+        if i != 0:
+            # Do not create extra variables for each time step
+            scope.reuse_variables()
+
+        # Mean and variance normalisation simply crunched over all axes
         axes = list(range(len(input_tensor.get_shape())))
 
         mean, variance = tf.nn.moments(input_tensor, axes=axes, shift=None, name=None, keep_dims=False)
@@ -36,10 +41,14 @@ def batch_norm(input_tensor, config):
 
         # Rescaling
         bn = input_tensor - mean
-        bn /= (stdev + 0.0001)
+        bn /= stdev
         # Learnable extra rescaling
-        bn *= tf.Variable(1.0, name=(scope.name + "/a"))
-        bn += tf.Variable(0.0, name=(scope.name + "/b"))
+
+        # tf.get_variable("relu_fc_weights", initializer=tf.random_normal(mean=0.0, stddev=0.0)
+        bn *= tf.get_variable("a_noreg", initializer=tf.random_normal([1], mean=0.5, stddev=0.0))
+        bn += tf.get_variable("b_noreg", initializer=tf.random_normal([1], mean=0.0, stddev=0.0))
+        # bn *= tf.Variable(0.5, name=(scope.name + "/a_noreg"))
+        # bn += tf.Variable(0.0, name=(scope.name + "/b_noreg"))
 
     return bn
 
@@ -64,7 +73,7 @@ def relu_fc(input_2D_tensor_list, features_len, new_features_len, config):
         )
     )
     b = tf.get_variable(
-        "relu_fc_biases",
+        "relu_fc_biases_noreg",
         initializer=tf.random_normal(
             [new_features_len],
             mean=float(config.bias_mean),
@@ -110,12 +119,12 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
     n_outputs = int(n_outputs/2)
 
     print "bidir:"
-    print (len(input_hidden_tensor), str(input_hidden_tensor[0].get_shape()))
 
     with tf.variable_scope('pass_forward') as scope2:
         hidden_forward = relu_fc(input_hidden_tensor, n_inputs, n_outputs, config)
         forward = single_LSTM_cell(hidden_forward, n_outputs)
 
+    print (len(hidden_forward), str(hidden_forward[0].get_shape()))
 
     # Backward pass is as simple as surrounding the cell with a double inversion:
     with tf.variable_scope('pass_backward') as scope2:
@@ -133,7 +142,7 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
     return layer_hidden_outputs
 
 
-def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, layer_level, config):
+def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, layer_level, config, keep_prob_for_dropout):
     """This architecture is only enabled if "config.n_layers_in_highway" has a
     value only greater than int(0). The arguments are same than for bi_LSTM_cell.
     arguments:
@@ -162,10 +171,10 @@ def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, l
                     get_lstm(input_hidden_tensor)
                 )
 
-    if config.also_add_dropout_between_stacked_cells:
-        hidden_LSTM_layer = [tf.nn.dropout(out, keep_prob_for_dropout) for out in hidden_LSTM_layer]
+        if config.also_add_dropout_between_stacked_cells:
+            hidden_LSTM_layer = [tf.nn.dropout(out, keep_prob_for_dropout) for out in hidden_LSTM_layer]
 
-    return [batch_norm(out, config) for out in hidden_LSTM_layer]
+        return [batch_norm(out, config, i) for i, out in enumerate(hidden_LSTM_layer)]
 
 
 def LSTM_network(feature_mat, config, keep_prob_for_dropout):
@@ -176,7 +185,7 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
         feature_mat: ndarray fature matrix, shape=[batch_size,time_steps,n_inputs]
         config: class containing config of network
       return:
-              : ndarray  output shape [batch_size,n_classes]
+              : ndarray  output shape [batch_size, n_classes]
     """
 
     with tf.variable_scope('LSTM_network') as scope:  # TensorFlow graph naming
@@ -200,13 +209,13 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
 
         # Stacking LSTM cells, at least one is stacked:
         print "\nCreating hidden #1:"
-        hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config)
+        hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
         print (len(hidden), str(hidden[0].get_shape()))
 
         for stacked_hidden_index in range(config.n_stacked_layers - 1):
             # If the config permits it, we stack more lstm cells:
             print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
-            hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config)
+            hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config, keep_prob_for_dropout)
             print (len(hidden), str(hidden[0].get_shape()))
 
         print ""
@@ -259,11 +268,21 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         pred_y = LSTM_network(X, config, keep_prob_for_dropout)
 
         # Loss, optimizer, evaluation
-        l2 = config.lambda_loss_amount * \
-            sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
-        # Softmax loss and L2
+
+        # Softmax loss with L2 and L1 layer-wise regularisation
+        print "Unregularised variables:"
+        for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
+            print unreg
+        l2 = config.lambda_loss_amount * sum(
+            tf.nn.l2_loss(tf_var)
+                for tf_var in tf.trainable_variables()
+                if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
+        )
+        # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
+        # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2
+            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
+
         # Gradient clipping Adam optimizer with gradient noise
         optimize = tf.contrib.layers.optimize_loss(
             loss,
@@ -286,12 +305,16 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
     with tf.Session(config=sessconfig) as sess:
         tf.initialize_all_variables().run()
 
-        best_accuracy = 0.0
-        best_f1_score = 0.0
+        best_accuracy = (0.0, "iter: -1")
+        best_f1_score = (0.0, "iter: -1")
 
         # Start training for each batch and loop epochs
+
+        worst_batches = []
+
         for i in range(config.training_epochs):
 
+            # Loop batches for an epoch:
             shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
             for start, end in zip(range(0, config.train_count, config.batch_size),
                                   range(config.batch_size, config.train_count + 1, config.batch_size)):
@@ -304,11 +327,32 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                         is_train: True
                     }
                 )
+
+                worst_batches.append(
+                    (train_loss, shuffled_X[start:end], shuffled_y[start:end])
+                )
+                worst_batches = list(sorted(worst_batches))[-5:]  # Keep 5 poorest
+
+            # Train F1 score is not on boosting
             train_f1_score = metrics.f1_score(
                 shuffled_y[start:end].argmax(1), train_pred.argmax(1), average="weighted"
             )
 
-            # Test completely at every epoch: calculate accuracy
+            # Retrain on top worst batches of this epoch (boosting):
+            # a.k.a. "focus on the hardest exercises while training":
+            for _, x_, y_ in worst_batches:
+
+                _, train_acc, train_loss, train_pred = sess.run(
+                    [optimize, accuracy, loss, pred_y],
+                    feed_dict={
+                        X: x_,
+                        Y: y_,
+                        is_train: True
+                    }
+                )
+
+            # Test completely at the end of every epoch:
+            # Calculate accuracy and F1 score
             pred_out, accuracy_out, loss_out = sess.run(
                 [pred_y, accuracy, loss],
                 feed_dict={
@@ -333,8 +377,8 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 "test F1-score: {}".format(f1_score_out)
             )
 
-            best_accuracy = max(best_accuracy, accuracy_out)
-            best_f1_score = max(best_f1_score, f1_score_out)
+            best_accuracy = max(best_accuracy, (accuracy_out, "iter: {}".format(i)))
+            best_f1_score = max(best_f1_score, (f1_score_out, "iter: {}".format(i)))
 
         print("")
         print("final test accuracy: {}".format(accuracy_out))

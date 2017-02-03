@@ -44,10 +44,8 @@ else:
 
 print("Extracting...")
 if not os.path.exists("oppChallenge_gestures.data"):
-    call(
-        '!python preprocess_data.py -i OpportunityUCIDataset.zip -o oppChallenge_gestures.data',
-        shell=True
-    )
+    from preprocess_data import generate_data
+    generate_data("OpportunityUCIDataset.zip", "oppChallenge_gestures.data", "gestures")
     print("Extracting successfully done to oppChallenge_gestures.data.")
 else:
     print("Dataset already extracted. Did not extract twice.\n")

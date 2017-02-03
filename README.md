@@ -14,9 +14,11 @@ Another dataset also has been tested, see subtitles below.
 
 ## Setup
 
-We used TensorFlow 0.11 and Python 2.
+We used TensorFlow 0.11 and Python 2. Sklearn is also used. 
 
 The two datasets can be loaded by running `python download_datasets.py` in the `data/` folder.
+
+To preprocess the second dataset (opportunity challenge dataset), you will need the signal submodule of scipy, and pandas.
 
 
 ## Results using the previous UCI HAR dataset
@@ -70,4 +72,4 @@ First, don't miss out this [nice video](https://www.youtube.com/watch?v=wzuKjjfY
 
 We only used a subset of the full dataset, preprocessed as in [this paper](http://www.mdpi.com/1424-8220/16/1/115) by using [their preprocessing scripts](https://github.com/sussexwearlab/DeepConvLSTM) in order to simulate the conditions of the competition. However, we made changes to the windowing of the series for feeding in our neural network to accept longer time series (128 and not 24). In our case the LSTM's inner representation is always reset to 0 between series rather than being kept over the whole dataset.
 
-We yet achieved an **F1 score of 0.86** with the config named `config_dataset_opportunity_18_classes.py`.
+We yet achieved an **F1 score of 0.89** with the config named `config_dataset_opportunity_18_classes.py`.
