@@ -2,7 +2,7 @@
 
 The project is based on [this repository](https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition) which is presented as a tutorial. It consists of Human Activity Recognition (HAR) using stacked residual bidirectional-LSTM cells (RNN) with TensorFlow.
 
-Here, we improve accuracy on the previously used dataset from 90% to 94% and we push the subject further by trying our architecture on another dataset.
+Here, we improve accuracy on the previously used dataset from 91% to 94% and we push the subject further by trying our architecture on another dataset.
 
 > Our neural network has been coded to be easy to adapt to new datasets and to use different breadth, depth and length by using a new configuration file.
 
