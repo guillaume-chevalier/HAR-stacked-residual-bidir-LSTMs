@@ -29,7 +29,7 @@ To preprocess the second dataset (opportunity challenge dataset), the `signal` s
 This [dataset](https://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones) named `A Public Domain Dataset for Human Activity Recognition Using Smartphones` is about classifying the type of movement amongst six categories:
 (WALKING, WALKING_UPSTAIRS, WALKING_DOWNSTAIRS, SITTING, STANDING, LAYING).
 
-The bests results for an **accuracy of 94%** are achieved with the 3x3 bidirectional architecture with a learning rate of `0.001` and an L2 regularization multiplier (weight decay) of `0.005`, as seen in the `3x3_result_HAR_6.txt` file.
+The bests results for a **test accuracy of 94%** are achieved with the 3x3 bidirectional architecture with a learning rate of `0.001` and an L2 regularization multiplier (weight decay) of `0.005`, as seen in the `3x3_result_HAR_6.txt` file.
 
 Training and testing can be launched by running the config: `python config_dataset_HAR_6_classes.py`.
 
@@ -40,7 +40,7 @@ The neural network has also been tried on the [Opportunity dataset](https://arch
 
 Don't miss out this [nice video](https://www.youtube.com/watch?v=wzuKjjfYnu8) that offers a nice overview and understanding of the dataset.
 
-We obtain an ***F1-score of 0.8916** by using windows of 128 time steps at 30 Hz. Our results can be compared to the state of the art [DeepConvLSTM](https://github.com/sussexwearlab/DeepConvLSTM) that is used on the same dataset and achieving a test F1-score of 0.9157.
+We obtain a **test F1-score of 0.8916** by using windows of 128 time steps at 30 Hz. Our results can be compared to the state of the art [DeepConvLSTM](https://github.com/sussexwearlab/DeepConvLSTM) that is used on the same dataset and achieving a test F1-score of 0.9157.
 
 We hypothesize that we achieve a lower result mainly due to our resetting of the LSTMs' states at every new time window. Their implementation keep those states troughout the whole series. They however use windows for the 1D time convolutions which sets the interval of the classification output.
 
