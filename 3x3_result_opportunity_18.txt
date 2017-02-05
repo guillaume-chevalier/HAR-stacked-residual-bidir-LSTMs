@@ -83,3 +83,39 @@ str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(keep_prob_for_dropout)+
 0.007 	0.0005 	0.5 	0.875506 	(0.88670081, 'iter: 98') 	0.86980134262 	(0.8818472924191112, 'iter: 98')
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000894621383053 	0.005 	0.869032 	(0.89142162, 'iter: 71') 	0.872810420026 	(0.88862157256154417, 'iter: 41')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000968538067989 	0.005 	0.869571 	(0.88724035, 'iter: 25') 	0.870466536488 	(0.88023264152196923, 'iter: 86')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.00125987947996 	0.005 	0.881171 	(0.89330995, 'iter: 58') 	0.878564128248 	(0.89027502784212242, 'iter: 64')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.00137106666299 	0.005 	0.885352 	(0.89452386, 'iter: 72') 	0.886174643733 	(0.89428738792396079, 'iter: 72')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000466888789748 	0.005 	0.882654 	(0.88885891, 'iter: 35') 	0.87989655536 	(0.88459827527474755, 'iter: 85')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000970786720705 	0.005 	0.878878 	(0.89357972, 'iter: 81') 	0.876241596971 	(0.88852542031294024, 'iter: 30')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.00185326504415 	0.005 	0.875371 	(0.88953334, 'iter: 34') 	0.878181832169 	(0.88675354560816533, 'iter: 52')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.00156108876323 	0.005 	0.869571 	(0.89128673, 'iter: 98') 	0.864949356802 	(0.88780859041025539, 'iter: 88')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000939005168521 	0.005 	0.882385 	(0.8950634, 'iter: 73') 	0.876891877024 	(0.89092959601306587, 'iter: 73')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000720533722431 	0.005 	0.861613 	(0.88764501, 'iter: 52') 	0.867768360967 	(0.88416320254745229, 'iter: 59')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.000972240339104 	0.005 	0.887915 	(0.89425409, 'iter: 51') 	0.880428146988 	(0.88663286124494911, 'iter: 71')
+
+str(learning_rate)+' 	'+str(lambda_loss_amount)+' 	'+str(accuracy_out)+' 	'+str(best_accuracy)+' 	'+str(f1_score_out)+' 	'+str(best_f1_score)
+0.00144646001016 	0.005 	0.859725 	(0.88993794, 'iter: 52') 	0.865440703711 	(0.88586904838783287, 'iter: 23')
+
