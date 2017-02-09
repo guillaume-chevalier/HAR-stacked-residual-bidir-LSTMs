@@ -146,10 +146,10 @@ n_layers_in_highway = 3
 n_stacked_layers = 3
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
-for learning_rate in np.random.normal(0.001, 0.0005, 10):
-    if learning_rate<0:
-        break
-    for lambda_loss_amount in [0.005]:
+for learning_rate in [0.00137106666299]:
+    for lambda_loss_amount in np.random.normal(0.005, 0.0005, 10):   
+    	if lambda_loss_amount<0:
+    		break
         print "learning_rate: {}".format(learning_rate)
         print "lambda_loss_amount: {}".format(lambda_loss_amount)
         print ""
