@@ -51,7 +51,7 @@ class Config(object):
         self.n_inputs = len(X_train[0][0])
         self.n_hidden = 28  # nb of neurons inside the neural network
         # Use bidir in every LSTM cell, or not:
-        self.use_bidirectionnal_cells = False
+        self.use_bidirectionnal_cells = True
 
         # High-level deep architecture
         self.also_add_dropout_between_stacked_cells = False  # True
