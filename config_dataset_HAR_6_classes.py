@@ -51,7 +51,7 @@ class Config(object):
         self.n_inputs = len(X_train[0][0])
         self.n_hidden = 28  # nb of neurons inside the neural network
         # Use bidir in every LSTM cell, or not:
-        self.use_bidirectionnal_cells = False
+        self.use_bidirectionnal_cells = True
 
         # High-level deep architecture
         self.also_add_dropout_between_stacked_cells = False  # True
@@ -163,7 +163,7 @@ y_test = load_y(y_test_path)
 # Training (maybe multiple) experiment(s)
 #--------------------------------------------
 
-n_layers_in_highway = 3
+n_layers_in_highway = 0
 n_stacked_layers = 3
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
