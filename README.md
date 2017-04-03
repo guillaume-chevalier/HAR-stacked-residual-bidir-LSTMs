@@ -6,6 +6,13 @@ Here, we improve accuracy on the previously used dataset from 91% to 94% and we 
 
 Our neural network has been coded to be easy to adapt to new datasets (assuming it is given a fixed, non-dynamic, window of signal for every prediction) and to use different breadth, depth and length by using a new configuration file.
 
+Here is a simplified overview of our architecture:
+
+### Simplified view of a "2x2" architecture. We obtain best results with a "3x3" architecture. Details below figure.
+<img src="architecture_example_2x2.jpg" />
+
+Keep in mind that the time steps expands to the left for the whole sequence length and that this architecture example is what we call a 2x2 architecture: 2 residual cells block stacked 2 times for a total of 4 bidirectional cells, which is in reality 8 unidirectional LSTM cells. We obtain best results with a 3x3 architecture, consisting of 18 LSTM cells.
+
 ## Neural network's architecture
 
 Mainly, the number of stacked and residual layers can be parametrized easily as well as whether or not bidirectional LSTM cells are to be used. Input data needs to be windowed to an array with one more dimension: the training and testing is never done on full signal lengths and use shuffling with resets of the hidden cells' states.
