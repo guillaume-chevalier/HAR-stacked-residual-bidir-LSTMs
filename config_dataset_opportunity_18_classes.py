@@ -76,7 +76,7 @@ FINAL_SEQUENCE_LENGTH = 8
 
 # Hardcoded step of the sliding window mechanism employed to segment the data
 SLIDING_WINDOW_STEP = int(SLIDING_WINDOW_LENGTH/2)
-SLIDING_WINDOW_STEP_SHORT = 16
+SLIDING_WINDOW_STEP_SHORT = SLIDING_WINDOW_STEP
 
 # Batch Size
 BATCH_SIZE = 100

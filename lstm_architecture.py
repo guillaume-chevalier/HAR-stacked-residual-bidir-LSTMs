@@ -13,7 +13,8 @@ def one_hot(y):
       return:
         one_hot_label: ndarray  one hot, shape: [sample_num,n_class]
     """
-    # e.g.: [[5], [0], [3]] --> [[0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0]]
+    # e.g.: [[5], [0], [3]] --> [[0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0], [0,
+    # 0, 0, 1, 0, 0]]
 
     y = y.reshape(len(y))
     n_values = np.max(y) + 1
@@ -36,21 +37,26 @@ def batch_norm(input_tensor, config, i):
         # Mean and variance normalisation simply crunched over all axes
         axes = list(range(len(input_tensor.get_shape())))
 
-        mean, variance = tf.nn.moments(input_tensor, axes=axes, shift=None, name=None, keep_dims=False)
-        stdev = tf.sqrt(variance+0.001)
+        mean, variance = tf.nn.moments(
+            input_tensor, axes=axes, shift=None, name=None, keep_dims=False)
+        stdev = tf.sqrt(variance + 0.001)
 
         # Rescaling
         bn = input_tensor - mean
         bn /= stdev
         # Learnable extra rescaling
 
-        # tf.get_variable("relu_fc_weights", initializer=tf.random_normal(mean=0.0, stddev=0.0)
-        bn *= tf.get_variable("a_noreg", initializer=tf.random_normal([1], mean=0.5, stddev=0.0))
-        bn += tf.get_variable("b_noreg", initializer=tf.random_normal([1], mean=0.0, stddev=0.0))
+        # tf.get_variable("relu_fc_weights",
+        # initializer=tf.random_normal(mean=0.0, stddev=0.0)
+        bn *= tf.get_variable("a_noreg",
+                              initializer=tf.random_normal([1], mean=0.5, stddev=0.0))
+        bn += tf.get_variable("b_noreg",
+                              initializer=tf.random_normal([1], mean=0.0, stddev=0.0))
         # bn *= tf.Variable(0.5, name=(scope.name + "/a_noreg"))
         # bn += tf.Variable(0.0, name=(scope.name + "/b_noreg"))
 
     return bn
+
 
 def relu_fc(input_2D_tensor_list, features_len, new_features_len, config):
     """make a relu fully-connected layer, mainly change the shape of tensor
@@ -84,10 +90,71 @@ def relu_fc(input_2D_tensor_list, features_len, new_features_len, config):
     # intra-timestep multiplication:
     output_2D_tensor_list = [
         tf.nn.relu(tf.matmul(input_2D_tensor, W) + b)
-            for input_2D_tensor in input_2D_tensor_list
+        for input_2D_tensor in input_2D_tensor_list
     ]
 
     return output_2D_tensor_list
+
+
+def conv_layer(input_hidden_tensor, config):
+    """define the 2 convolutional layers
+       argument: 
+            input_hidden_tensor: tensor shape: [batch_size, time_steps, n_intputs]
+            config: used for determining input features value
+        return:
+            outputs:   tensor shape: [batch_size, time_steps, n_outputs]
+     """
+    n_outputs = config.n_inputs
+    shape = input_hidden_tensor.get_shape()
+
+    intputs = tf.reshape(input_hidden_tensor,
+                         [-1, int(shape[1]), 1, int(shape[2])])
+    # the shape of inputs is [batch_size, time_steps, 1, n_inputs]
+
+    with tf.variable_scope("conv_layers"):
+        conv_W = {
+            # 5x1 conv, n_inputs inputs, 32 outputs
+            'wc1': tf.Variable(tf.random_normal([5, 1, config.n_inputs, 32])),
+            # 5x1 conv, 32 inputs, 1024 outputs
+            'wc2': tf.Variable(tf.random_normal([5, 1, 32, 1024])),
+            # full connection, 1024 inputs, n_outputs
+            'wo': tf.Variable(tf.random_normal([1024, n_outputs]))
+        }
+        conv_b = {
+            'bc1': tf.Variable(tf.random_normal([32])),
+            'bc2': tf.Variable(tf.random_normal([1024])),
+            'bo': tf.Variable(tf.random_normal([n_outputs]))
+        }
+
+        def conv2d(X, W, b, stride=1):
+            X = tf.nn.conv2d(X, W, [1, stride, stride, 1], padding='SAME')
+            X = tf.nn.bias_add(X, b)
+            return tf.nn.relu(X)
+
+        def maxpool2d(X, k=2):
+            return tf.nn.max_pool(X, ksize=[1, k, 1, 1], strides=[1, k, 1, 1], padding='SAME')
+
+    conv1 = conv2d(intputs, conv_W['wc1'], conv_b['bc1'])
+    # the shape of conv1 should be [batch_size, time_steps, 1, 32]
+    # print conv1
+    conv2 = conv2d(conv1, conv_W['wc2'], conv_b['bc2'])
+    # the shape of conv2 should be [batch_size, time_steps, 1, 1024]
+    # print conv2
+    outputs = tf.squeeze(conv2, 2)
+    # the outputs has shape [batch_size, time_steps, 1024]
+    # print outputs
+    outputs_reshape = tf.reshape(outputs, [-1, 1024])
+    # print outputs_reshape
+    # the shape of output_reshape is [batch_size*time_steps, 1024]
+    outputs = tf.matmul(outputs_reshape, conv_W['wo']) + conv_b['bo']
+    # print outputs
+    # the outputs has shape [batch_size*time_steps, n_outputs]
+    outputs = tf.reshape(outputs, [-1, config.n_steps, n_outputs])
+    # the outputs has shape [batch_size, time_steps, n_outputs]
+    # print outputs
+    # print input_hidden_tensor
+    # print outputs
+    return outputs
 
 
 def single_LSTM_cell(input_hidden_tensor, n_outputs):
@@ -101,8 +168,10 @@ def single_LSTM_cell(input_hidden_tensor, n_outputs):
                      shape: time_steps*[batch_size,n_outputs]
     """
     with tf.variable_scope("lstm_cell"):
-        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=0.999)
-        outputs, _ = tf.nn.rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
+        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(
+            n_outputs, state_is_tuple=True, forget_bias=0.999)
+        outputs, _ = tf.nn.rnn(
+            lstm_cell, input_hidden_tensor, dtype=tf.float32)
     return outputs
 
 
@@ -116,20 +185,24 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
         return:
             layer_hidden_outputs: list a time_steps series of tensor, shape: [sample_num, n_outputs]
     """
-    n_outputs = int(n_outputs/2)
+    n_outputs = int(n_outputs / 2)
 
     print "bidir:"
 
     with tf.variable_scope('pass_forward') as scope2:
-        hidden_forward = relu_fc(input_hidden_tensor, n_inputs, n_outputs, config)
+        hidden_forward = relu_fc(
+            input_hidden_tensor, n_inputs, n_outputs, config)
         forward = single_LSTM_cell(hidden_forward, n_outputs)
 
     print (len(hidden_forward), str(hidden_forward[0].get_shape()))
 
-    # Backward pass is as simple as surrounding the cell with a double inversion:
+    # Backward pass is as simple as surrounding the cell with a double
+    # inversion:
     with tf.variable_scope('pass_backward') as scope2:
-        hidden_backward = relu_fc(input_hidden_tensor, n_inputs, n_outputs, config)
-        backward = list(reversed(single_LSTM_cell(list(reversed(hidden_backward)), n_outputs)))
+        hidden_backward = relu_fc(
+            input_hidden_tensor, n_inputs, n_outputs, config)
+        backward = list(reversed(single_LSTM_cell(
+            list(reversed(hidden_backward)), n_outputs)))
 
     with tf.variable_scope('bidir_concat') as scope:
         # Simply concatenating cells' outputs at each timesteps on the innermost
@@ -137,7 +210,7 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
         # with twice the n_hidden size:
         layer_hidden_outputs = [
             tf.concat(len(f.get_shape()) - 1, [f, b])
-                for f, b in zip(forward, backward)]
+            for f, b in zip(forward, backward)]
 
     return layer_hidden_outputs
 
@@ -156,9 +229,11 @@ def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, l
     with tf.variable_scope('layer_{}'.format(layer_level)) as scope:
 
         if config.use_bidirectionnal_cells:
-            get_lstm = lambda input_tensor: bi_LSTM_cell(input_tensor, n_input, n_output, config)
+            get_lstm = lambda input_tensor: bi_LSTM_cell(
+                input_tensor, n_input, n_output, config)
         else:
-            get_lstm = lambda input_tensor: single_LSTM_cell(relu_fc(input_tensor, n_input, n_output, config), n_output)
+            get_lstm = lambda input_tensor: single_LSTM_cell(
+                relu_fc(input_tensor, n_input, n_output, config), n_output)
         def add_highway_redisual(layer, residual_minilayer):
             return [a + b for a, b in zip(layer, residual_minilayer)]
 
@@ -172,7 +247,8 @@ def residual_bidirectional_LSTM_layers(input_hidden_tensor, n_input, n_output, l
                 )
 
         if config.also_add_dropout_between_stacked_cells:
-            hidden_LSTM_layer = [tf.nn.dropout(out, keep_prob_for_dropout) for out in hidden_LSTM_layer]
+            hidden_LSTM_layer = [tf.nn.dropout(
+                out, keep_prob_for_dropout) for out in hidden_LSTM_layer]
 
         return [batch_norm(out, config, i) for i, out in enumerate(hidden_LSTM_layer)]
 
@@ -192,6 +268,7 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
 
         feature_mat = tf.nn.dropout(feature_mat, keep_prob_for_dropout)
 
+        feature_mat = conv_layer(feature_mat, config)
         # Exchange dim 1 and dim 0
         feature_mat = tf.transpose(feature_mat, [1, 0, 2])
         print feature_mat.get_shape()
@@ -202,26 +279,31 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
         print feature_mat.get_shape()
         # New feature_mat's shape: [time_steps*batch_size, n_inputs]
 
-        # Split the series because the rnn cell needs time_steps features, each of shape:
+        # Split the series because the rnn cell needs time_steps features, each
+        # of shape:
         hidden = tf.split(0, config.n_steps, feature_mat)
         print (len(hidden), str(hidden[0].get_shape()))
-        # New shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_hidden]
+        # New shape: a list of lenght "time_step" containing tensors of shape
+        # [batch_size, n_hidden]
 
         # Stacking LSTM cells, at least one is stacked:
         print "\nCreating hidden #1:"
-        hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
+        hidden = residual_bidirectional_LSTM_layers(
+            hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
         print (len(hidden), str(hidden[0].get_shape()))
 
         for stacked_hidden_index in range(config.n_stacked_layers - 1):
             # If the config permits it, we stack more lstm cells:
-            print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
-            hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config, keep_prob_for_dropout)
+            print "\nCreating hidden #{}:".format(stacked_hidden_index + 2)
+            hidden = residual_bidirectional_LSTM_layers(
+                hidden, config.n_hidden, config.n_hidden, stacked_hidden_index + 2, config, keep_prob_for_dropout)
             print (len(hidden), str(hidden[0].get_shape()))
 
         print ""
 
         # Final fully-connected activation logits
-        # Get the last output tensor of the inner loop output series, of shape [batch_size, n_classes]
+        # Get the last output tensor of the inner loop output series, of shape
+        # [batch_size, n_classes]
         last_hidden = tf.nn.dropout(hidden[-1], keep_prob_for_dropout)
         last_logits = relu_fc(
             [last_hidden],
@@ -246,55 +328,57 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
     #------------------------------------------------------
     # Let's get serious and build the neural network
     #------------------------------------------------------
-    with tf.device("/cpu:0"):  # Remove this line to use GPU. If you have a too small GPU, it crashes.
-        X = tf.placeholder(tf.float32, [
-                           None, config.n_steps, config.n_inputs], name="X")
-        Y = tf.placeholder(tf.float32, [
-                           None, config.n_classes], name="Y")
+    # Remove this line to use GPU. If you have a too small GPU, it crashes.
+    # with tf.device("/cpu:0"):
+    X = tf.placeholder(tf.float32, [
+                       None, config.n_steps, config.n_inputs], name="X")
+    Y = tf.placeholder(tf.float32, [
+                       None, config.n_classes], name="Y")
 
-        # is_train for dropout control:
-        is_train = tf.placeholder(tf.bool, name="is_train")
-        keep_prob_for_dropout = tf.cond(is_train,
-            lambda: tf.constant(
-                config.keep_prob_for_dropout,
-                name="keep_prob_for_dropout"
-            ),
-            lambda: tf.constant(
-                1.0,
-                name="keep_prob_for_dropout"
-            )
-        )
+    # is_train for dropout control:
+    is_train = tf.placeholder(tf.bool, name="is_train")
+    keep_prob_for_dropout = tf.cond(is_train,
+                                    lambda: tf.constant(
+                                        config.keep_prob_for_dropout,
+                                        name="keep_prob_for_dropout"
+                                    ),
+                                    lambda: tf.constant(
+                                        1.0,
+                                        name="keep_prob_for_dropout"
+                                    )
+                                    )
 
-        pred_y = LSTM_network(X, config, keep_prob_for_dropout)
+    pred_y = LSTM_network(X, config, keep_prob_for_dropout)
 
-        # Loss, optimizer, evaluation
+    # Loss, optimizer, evaluation
 
-        # Softmax loss with L2 and L1 layer-wise regularisation
-        print "Unregularised variables:"
-        for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
-            print unreg
-        l2 = config.lambda_loss_amount * sum(
-            tf.nn.l2_loss(tf_var)
-                for tf_var in tf.trainable_variables()
-                if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
-        )
-        # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
-        # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
-        loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
+    # Softmax loss with L2 and L1 layer-wise regularisation
+    print "Unregularised variables:"
+    for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
+        print unreg
+    l2 = config.lambda_loss_amount * sum(
+        tf.nn.l2_loss(tf_var)
+        for tf_var in tf.trainable_variables()
+        if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
+    )
+    # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
+    # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
+    loss = tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
 
-        # Gradient clipping Adam optimizer with gradient noise
-        optimize = tf.contrib.layers.optimize_loss(
-            loss,
-            global_step=tf.Variable(0),
-            learning_rate=config.learning_rate,
-            optimizer=tf.train.AdamOptimizer(learning_rate=config.learning_rate),
-            clip_gradients=config.clip_gradients,
-            gradient_noise_scale=config.gradient_noise_scale
-        )
+    # Gradient clipping Adam optimizer with gradient noise
+    optimize = tf.contrib.layers.optimize_loss(
+        loss,
+        global_step=tf.Variable(0),
+        learning_rate=config.learning_rate,
+        optimizer=tf.train.AdamOptimizer(
+            learning_rate=config.learning_rate),
+        clip_gradients=config.clip_gradients,
+        gradient_noise_scale=config.gradient_noise_scale
+    )
 
-        correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
+    correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
 
     #--------------------------------------------
     # Hooray, now train the neural network
@@ -315,7 +399,8 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         for i in range(config.training_epochs):
 
             # Loop batches for an epoch:
-            shuffled_X, shuffled_y = shuffle(X_train, y_train, random_state=i*42)
+            shuffled_X, shuffled_y = shuffle(
+                X_train, y_train, random_state=i * 42)
             for start, end in zip(range(0, config.train_count, config.batch_size),
                                   range(config.batch_size, config.train_count + 1, config.batch_size)):
 
@@ -331,7 +416,8 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
                 worst_batches.append(
                     (train_loss, shuffled_X[start:end], shuffled_y[start:end])
                 )
-                worst_batches = list(sorted(worst_batches))[-5:]  # Keep 5 poorest
+                worst_batches = list(sorted(worst_batches)
+                                     )[-5:]  # Keep 5 poorest
 
             # Train F1 score is not on boosting
             train_f1_score = metrics.f1_score(
@@ -368,17 +454,19 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
             )
 
             print (
-                "iter: {}, ".format(i) + \
-                "train loss: {}, ".format(train_loss) + \
-                "train accuracy: {}, ".format(train_acc) + \
-                "train F1-score: {}, ".format(train_f1_score) + \
-                "test loss: {}, ".format(loss_out) + \
-                "test accuracy: {}, ".format(accuracy_out) + \
+                "iter: {}, ".format(i) +
+                "train loss: {}, ".format(train_loss) +
+                "train accuracy: {}, ".format(train_acc) +
+                "train F1-score: {}, ".format(train_f1_score) +
+                "test loss: {}, ".format(loss_out) +
+                "test accuracy: {}, ".format(accuracy_out) +
                 "test F1-score: {}".format(f1_score_out)
             )
 
-            best_accuracy = max(best_accuracy, (accuracy_out, "iter: {}".format(i)))
-            best_f1_score = max(best_f1_score, (f1_score_out, "iter: {}".format(i)))
+            best_accuracy = max(
+                best_accuracy, (accuracy_out, "iter: {}".format(i)))
+            best_f1_score = max(
+                best_f1_score, (f1_score_out, "iter: {}".format(i)))
 
         print("")
         print("final test accuracy: {}".format(accuracy_out))
