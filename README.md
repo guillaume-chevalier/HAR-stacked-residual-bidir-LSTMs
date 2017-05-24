@@ -1,6 +1,8 @@
 # HAR-stacked-residual-bidir-LSTM
 
-The project is based on [this repository](https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition) which is presented as a tutorial. It consists of Human Activity Recognition (HAR) using stacked residual bidirectional-LSTM cells (RNN) with TensorFlow.
+The project is based on [this repository](https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition) which is presented as a tutorial. It consists of Human Activity Recognition (HAR) using stacked residual bidirectional-LSTM cells (RNN) with TensorFlow. 
+
+It resembles to the architecture used in "[Google’s Neural Machine Translation System: Bridging the Gap between Human and Machine Translation](https://arxiv.org/pdf/1609.08144.pdf)" without an attention mechanism and with just the encoder part. In fact, we started coding while thinking about applying residual connections to LSTMs - and it is only afterwards that we saw that such a deep LSTM architecture was already being used. 
 
 Here, we improve accuracy on the previously used dataset from 91% to 94% and we push the subject further by trying our architecture on another dataset.
 
@@ -8,10 +10,13 @@ Our neural network has been coded to be easy to adapt to new datasets (assuming 
 
 Here is a simplified overview of our architecture:
 
-### Simplified view of a "2x2" architecture. We obtain best results with a "3x3" architecture. Details below figure.
-<img src="architecture_example_2x2.jpg" />
+### Simplified view of a "2x2" architecture. We obtain best results with a "3x3" architecture (details below figure).
+<p align="center">
+  <img src="architecture_example_2x2.jpg" />
+</p>
 
-Keep in mind that the time steps expands to the left for the whole sequence length and that this architecture example is what we call a 2x2 architecture: 2 residual cells block stacked 2 times for a total of 4 bidirectional cells, which is in reality 8 unidirectional LSTM cells. We obtain best results with a 3x3 architecture, consisting of 18 LSTM cells.
+Bear in mind that the time steps expands to the left for the whole sequence length and that this architecture example is what we call a "2x2" architecture: 2 residual cells as a block stacked 2 times for a total of 4 bidirectional cells, which is in reality 8 unidirectional LSTM cells. We obtain best results with a 3x3 architecture, consisting of 18 LSTM cells.
+
 
 ## Neural network's architecture
 
