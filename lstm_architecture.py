@@ -329,56 +329,56 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
     # Let's get serious and build the neural network
     #------------------------------------------------------
     # Remove this line to use GPU. If you have a too small GPU, it crashes.
-    # with tf.device("/cpu:0"):
-    X = tf.placeholder(tf.float32, [
-                       None, config.n_steps, config.n_inputs], name="X")
-    Y = tf.placeholder(tf.float32, [
-                       None, config.n_classes], name="Y")
+    with tf.device("/cpu:0"):
+        X = tf.placeholder(tf.float32, [
+                           None, config.n_steps, config.n_inputs], name="X")
+        Y = tf.placeholder(tf.float32, [
+                           None, config.n_classes], name="Y")
 
-    # is_train for dropout control:
-    is_train = tf.placeholder(tf.bool, name="is_train")
-    keep_prob_for_dropout = tf.cond(is_train,
-                                    lambda: tf.constant(
-                                        config.keep_prob_for_dropout,
-                                        name="keep_prob_for_dropout"
-                                    ),
-                                    lambda: tf.constant(
-                                        1.0,
-                                        name="keep_prob_for_dropout"
-                                    )
-                                    )
+        # is_train for dropout control:
+        is_train = tf.placeholder(tf.bool, name="is_train")
+        keep_prob_for_dropout = tf.cond(is_train,
+                                        lambda: tf.constant(
+                                            config.keep_prob_for_dropout,
+                                            name="keep_prob_for_dropout"
+                                        ),
+                                        lambda: tf.constant(
+                                            1.0,
+                                            name="keep_prob_for_dropout"
+                                        )
+                                        )
 
-    pred_y = LSTM_network(X, config, keep_prob_for_dropout)
+        pred_y = LSTM_network(X, config, keep_prob_for_dropout)
 
-    # Loss, optimizer, evaluation
+        # Loss, optimizer, evaluation
 
-    # Softmax loss with L2 and L1 layer-wise regularisation
-    print "Unregularised variables:"
-    for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
-        print unreg
-    l2 = config.lambda_loss_amount * sum(
-        tf.nn.l2_loss(tf_var)
-        for tf_var in tf.trainable_variables()
-        if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
-    )
-    # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
-    # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
-    loss = tf.reduce_mean(
-        tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
+        # Softmax loss with L2 and L1 layer-wise regularisation
+        print "Unregularised variables:"
+        for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
+            print unreg
+        l2 = config.lambda_loss_amount * sum(
+            tf.nn.l2_loss(tf_var)
+            for tf_var in tf.trainable_variables()
+            if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
+        )
+        # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
+        # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
+        loss = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
 
-    # Gradient clipping Adam optimizer with gradient noise
-    optimize = tf.contrib.layers.optimize_loss(
-        loss,
-        global_step=tf.Variable(0),
-        learning_rate=config.learning_rate,
-        optimizer=tf.train.AdamOptimizer(
-            learning_rate=config.learning_rate),
-        clip_gradients=config.clip_gradients,
-        gradient_noise_scale=config.gradient_noise_scale
-    )
+        # Gradient clipping Adam optimizer with gradient noise
+        optimize = tf.contrib.layers.optimize_loss(
+            loss,
+            global_step=tf.Variable(0),
+            learning_rate=config.learning_rate,
+            optimizer=tf.train.AdamOptimizer(
+                learning_rate=config.learning_rate),
+            clip_gradients=config.clip_gradients,
+            gradient_noise_scale=config.gradient_noise_scale
+        )
 
-    correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
+        correct_pred = tf.equal(tf.argmax(pred_y, 1), tf.argmax(Y, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_pred, dtype=tf.float32))
 
     #--------------------------------------------
     # Hooray, now train the neural network

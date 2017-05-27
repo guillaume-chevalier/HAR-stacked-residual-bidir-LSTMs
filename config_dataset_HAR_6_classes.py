@@ -189,6 +189,8 @@ def fine_tune(args):
     #     accuracy_out, best_accuracy = run_with_config(EditedConfig)
     # except:
     #     accuracy_out, best_accuracy = -1, -1
+    print "selected lr_rate is {}, l2_multi is {}, clip_multi is {}".\
+      format(args["lr_rate_multi"], args["l2_multi"],args["clip_multi"])
     accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
         run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
     )
@@ -207,6 +209,7 @@ def fine_tune(args):
 space = {"lr_rate_multi": hp.uniform("lr_rate_multi",0.0001, 0.1), 
         "l2_multi": hp.uniform("l2_multi",0.0001, 0.1),
         "clip_multi": hp.choice("clip_multi",[5., 10., 15.])}
+
 best = fmin(fine_tune, space, algo=tpe.suggest, max_evals=100)
 print best
 print fine_tune(space)
