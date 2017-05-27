@@ -165,23 +165,27 @@ y_test = load_y(y_test_path)
 # Training (maybe multiple) experiment(s)
 #--------------------------------------------
 
+# Those parameters could also be in the space
+# such as: round(hp.qnormal('...name...', 0, 3, 1))
 n_layers_in_highway = 0
 n_stacked_layers = 2
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
 
-def fine_tune(args):
+def fine_tune(hyperparams):
     class EditedConfig(Config):
         def __init__(self, X, Y):
             super(EditedConfig, self).__init__(X, Y)
 
             # Edit only some parameters:
-            self.learning_rate = args["lr_rate_multi"]
-            self.lambda_loss_amount = args["l2_multi"]
-            self.clip_gradients = args["clip_multi"]
+            self.learning_rate *= hyperparams["lr_rate_multiplier"]
+            self.lambda_loss_amount *= hyperparams["l2_reg_multiplier"]
+            self.clip_gradients = hyperparams["clip_multi"]
             # Architecture params:
             self.n_layers_in_highway = n_layers_in_highway
             self.n_stacked_layers = n_stacked_layers  
+            
+            self.keep_prob_for_dropout = hyperparams["dropout_keep_probability"]
 
 
     # # Useful catch upon looping (e.g.: not enough memory)
@@ -189,8 +193,8 @@ def fine_tune(args):
     #     accuracy_out, best_accuracy = run_with_config(EditedConfig)
     # except:
     #     accuracy_out, best_accuracy = -1, -1
-    print "selected lr_rate is {}, l2_multi is {}, clip_multi is {}".\
-      format(args["lr_rate_multi"], args["l2_multi"],args["clip_multi"])
+    print "selected lr_rate is {}, l2_multi is {}, clip_multi is {}, dropout is {}".\
+      format(hyperparams["lr_rate_multi"], hyperparams["l2_multi"], hyperparams["clip_multi"], hyperparams["dropout_keep_probability"])
     accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
         run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
     )
@@ -205,15 +209,13 @@ def fine_tune(args):
     return -best_f1_score
 
 
-
-space = {"lr_rate_multi": hp.uniform("lr_rate_multi",0.0001, 0.1), 
-        "l2_multi": hp.uniform("l2_multi",0.0001, 0.1),
-        "clip_multi": hp.choice("clip_multi",[5., 10., 15.])}
+space = {
+    "lr_rate_multiplier": hp.loguniform("lr_rate_multi", -0.3, 0.3), 
+    "l2_reg_multiplier": hp.loguniform("l2_multi", -0.3, 0.3),
+    "clip_gradients": hp.choice("clip_multi", [5., 10., 15., 20.]),
+    "dropout_keep_probability": hp.uniform("clip_multi", 0.5, 1.0)
+}
 
 best = fmin(fine_tune, space, algo=tpe.suggest, max_evals=100)
 print best
 print fine_tune(space)
-
-
-
-
