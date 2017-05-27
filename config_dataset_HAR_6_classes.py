@@ -2,8 +2,10 @@
 from lstm_architecture import one_hot, run_with_config
 
 import numpy as np
-
 import os
+
+from hyperopt import hp, tpe, fmin
+
 
 
 #--------------------------------------------
@@ -164,42 +166,51 @@ y_test = load_y(y_test_path)
 #--------------------------------------------
 
 n_layers_in_highway = 0
-n_stacked_layers = 3
+n_stacked_layers = 2
 trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
-for learning_rate in [0.001]:  # [0.01, 0.007, 0.001, 0.0007, 0.0001]:
-    for lambda_loss_amount in [0.005]:
-        for clip_gradients in [15.0]:
-            print "learning_rate: {}".format(learning_rate)
-            print "lambda_loss_amount: {}".format(lambda_loss_amount)
-            print ""
 
-            class EditedConfig(Config):
-                def __init__(self, X, Y):
-                    super(EditedConfig, self).__init__(X, Y)
+def fine_tune(args):
+    class EditedConfig(Config):
+        def __init__(self, X, Y):
+            super(EditedConfig, self).__init__(X, Y)
 
-                    # Edit only some parameters:
-                    self.learning_rate = learning_rate
-                    self.lambda_loss_amount = lambda_loss_amount
-                    self.clip_gradients = clip_gradients
-                    # Architecture params:
-                    self.n_layers_in_highway = n_layers_in_highway
-                    self.n_stacked_layers = n_stacked_layers
+            # Edit only some parameters:
+            self.learning_rate = args["lr_rate_multi"]
+            self.lambda_loss_amount = args["l2_multi"]
+            self.clip_gradients = args["clip_multi"]
+            # Architecture params:
+            self.n_layers_in_highway = n_layers_in_highway
+            self.n_stacked_layers = n_stacked_layers  
 
-            # # Useful catch upon looping (e.g.: not enough memory)
-            # try:
-            #     accuracy_out, best_accuracy = run_with_config(EditedConfig)
-            # except:
-            #     accuracy_out, best_accuracy = -1, -1
-            accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
-                run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
-            )
-            print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
-            with open('{}_result_HAR_6.txt'.format(trial_name), 'a') as f:
-                f.write(str(learning_rate) + ' \t' + str(lambda_loss_amount) + ' \t' + str(clip_gradients) + ' \t' + str(
-                    accuracy_out) + ' \t' + str(best_accuracy) + ' \t' + str(f1_score_out) + ' \t' + str(best_f1_score) + '\n\n')
+    # # Useful catch upon looping (e.g.: not enough memory)
+    # try:
+    #     accuracy_out, best_accuracy = run_with_config(EditedConfig)
+    # except:
+    #     accuracy_out, best_accuracy = -1, -1
+    accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
+        run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
+    )
+    print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
-            print "________________________________________________________"
-        print ""
-print "Done."
+    with open('{}_result_HAR_6.txt'.format(trial_name), 'a') as f:
+        f.write(str(learning_rate) + ' \t' + str(lambda_loss_amount) + ' \t' + str(clip_gradients) + ' \t' + str(
+            accuracy_out) + ' \t' + str(best_accuracy) + ' \t' + str(f1_score_out) + ' \t' + str(best_f1_score) + '\n\n')
+
+    print "________________________________________________________"
+
+    return -best_f1_score
+
+
+
+space = {"lr_rate_multi": hp.uniform("lr_rate_multi",0.0001, 0.1), 
+        "l2_multi": hp.uniform("l2_multi",0.0001, 0.1),
+        "clip_multi": hp.choice("clip_multi",[5., 10., 15.])}
+best = fmin(fine_tune, space, algo=tpe.suggest, max_evals=100)
+print best
+print fine_tune(space)
+
+
+
+
