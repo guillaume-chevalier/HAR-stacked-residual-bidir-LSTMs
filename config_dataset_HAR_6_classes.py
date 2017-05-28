@@ -180,12 +180,14 @@ def fine_tune(hyperparams):
             # Edit only some parameters:
             self.learning_rate *= hyperparams["lr_rate_multiplier"]
             self.lambda_loss_amount *= hyperparams["l2_reg_multiplier"]
-            self.clip_gradients = hyperparams["clip_multi"]
+            self.clip_gradients = hyperparams["clip_gradients"]
+            self.keep_prob_for_dropout = hyperparams["dropout_keep_probability"]
+                        
             # Architecture params:
             self.n_layers_in_highway = n_layers_in_highway
             self.n_stacked_layers = n_stacked_layers  
             
-            self.keep_prob_for_dropout = hyperparams["dropout_keep_probability"]
+
 
 
     # # Useful catch upon looping (e.g.: not enough memory)
@@ -194,7 +196,7 @@ def fine_tune(hyperparams):
     # except:
     #     accuracy_out, best_accuracy = -1, -1
     print "selected lr_rate is {}, l2_multi is {}, clip_multi is {}, dropout is {}".\
-      format(hyperparams["lr_rate_multi"], hyperparams["l2_multi"], hyperparams["clip_multi"], hyperparams["dropout_keep_probability"])
+      format(hyperparams["lr_rate_multiplier"], hyperparams["l2_reg_multiplier"], hyperparams["clip_gradients"], hyperparams["dropout_keep_probability"])
     accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
         run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
     )
@@ -213,7 +215,7 @@ space = {
     "lr_rate_multiplier": hp.loguniform("lr_rate_multi", -0.3, 0.3), 
     "l2_reg_multiplier": hp.loguniform("l2_multi", -0.3, 0.3),
     "clip_gradients": hp.choice("clip_multi", [5., 10., 15., 20.]),
-    "dropout_keep_probability": hp.uniform("clip_multi", 0.5, 1.0)
+    "dropout_keep_probability": hp.uniform("dropout_multi", 0.5, 1.0)
 }
 
 best = fmin(fine_tune, space, algo=tpe.suggest, max_evals=100)
