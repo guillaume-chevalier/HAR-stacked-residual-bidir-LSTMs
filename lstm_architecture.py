@@ -98,7 +98,7 @@ def relu_fc(input_2D_tensor_list, features_len, new_features_len, config):
 
 def conv_layer(input_hidden_tensor, config):
     """define the 2 convolutional layers
-       argument: 
+       argument:
             input_hidden_tensor: tensor shape: [batch_size, time_steps, n_intputs]
             config: used for determining input features value
         return:

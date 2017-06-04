@@ -5,6 +5,7 @@ from sliding_window import sliding_window
 
 import numpy as np
 from hyperopt import hp, tpe, fmin, Trials, STATUS_OK, STATUS_FAIL
+import tensorflow as tf
 
 import cPickle as cp
 import time
@@ -13,6 +14,7 @@ import json
 import os
 import pickle
 import traceback
+import random
 
 
 #--------------------------------------------
@@ -207,6 +209,8 @@ def fine_tune(hyperparams):
             'err': err_str,
             'traceback': traceback_str
         }
+        trial_name = "model_{}x{}_FAILED_{}".format(
+            hyperparams["n_layers_in_highway"], hyperparams["n_stacked_layers"], str(random.random()))
 
     print("RESULTS:")
     print(json.dumps(

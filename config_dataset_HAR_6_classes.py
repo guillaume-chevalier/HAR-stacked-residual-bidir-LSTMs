@@ -3,12 +3,14 @@ from lstm_architecture import one_hot, run_with_config
 
 import numpy as np
 from hyperopt import hp, tpe, fmin, Trials, STATUS_OK, STATUS_FAIL
+import tensorflow as tf
 
 from bson import json_util
 import json
 import os
 import pickle
 import traceback
+import random
 
 #--------------------------------------------
 # Neural net's config.
@@ -221,6 +223,8 @@ def fine_tune(hyperparams):
             'err': err_str,
             'traceback': traceback_str
         }
+        trial_name = "model_{}x{}_FAILED_{}".format(
+            hyperparams["n_layers_in_highway"], hyperparams["n_stacked_layers"], str(random.random()))
 
     print("RESULTS:")
     print(json.dumps(
