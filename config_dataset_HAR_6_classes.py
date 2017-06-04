@@ -193,7 +193,7 @@ def fine_tune(hyperparams):
             run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
         )
         trial_name = "model_{}x{}_{}_{}".format(
-            n_layers_in_highway, n_stacked_layers, best_accuracy, best_f1_score)
+            hyperparams["n_layers_in_highway"], hyperparams["n_stacked_layers"], best_accuracy, best_f1_score)
 
         print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
