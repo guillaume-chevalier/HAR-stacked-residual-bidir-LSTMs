@@ -211,6 +211,7 @@ def fine_tune(hyperparams):
 
     except Exception as err:
         try:
+            tf.reset_default_graph()
             tf.get_default_session().close()
         except:
             pass
