@@ -58,3 +58,28 @@ We only used a subset of the full dataset as done in other research in order to 
 
 The config file can be runned like this: `config_dataset_opportunity_18_classes.py`.
 For best results, it is possible to readjust the learning rate such as in the `3x3_result_opportunity_18.txt` file.
+
+## Citation
+
+The paper is available on arXiv: https://arxiv.org/abs/1708.08989
+
+Here is the BibTeX citation code: 
+```
+@article{DBLP:journals/corr/abs-1708-08989,
+  author    = {Yu Zhao and
+               Rennong Yang and
+               Guillaume Chevalier and
+               Maoguo Gong},
+  title     = {Deep Residual Bidir-LSTM for Human Activity Recognition Using Wearable
+               Sensors},
+  journal   = {CoRR},
+  volume    = {abs/1708.08989},
+  year      = {2017},
+  url       = {http://arxiv.org/abs/1708.08989},
+  archivePrefix = {arXiv},
+  eprint    = {1708.08989},
+  timestamp = {Mon, 13 Aug 2018 16:46:48 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/abs-1708-08989},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+```
