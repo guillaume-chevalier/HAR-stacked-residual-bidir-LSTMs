@@ -83,3 +83,17 @@ Here is the BibTeX citation code:
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 ```
+
+## Collaborate with us on similar research projects
+
+Join the [slack workspace](https://join.slack.com/t/neuraxio/shared_invite/zt-8lyw42c5-4PuWjTT8dQqeFK3at1s_dQ) for time series processing, where you can: 
+
+- Collaborate with us and other researchers on writing more time series processing papers, in the #research channel;
+- Do business with us and other companies for services and products related to time series processing, in the #business channel;
+- Talk about how to do Clean Machine Learning using [Neuraxle](https://github.com/Neuraxio/Neuraxle), in the #neuraxle channel;
+
+## Online Course: Learn Deep Learning and Recurrent Neural Networks (DL&RNN)
+
+We have created a course on Deep Learning and Recurrent Neural Networks (DL&RNN). [Request an access to the course here](https://www.neuraxio.com/en/time-series-solution). That is the most richly dense and accelerated course out there on this precise topic of DL&RNN.
+
+We've also created another course on how to do Clean Machine Learning with the right design patterns and the right software architecture for your code to evolve correctly to be useable in production environments.
