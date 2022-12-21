@@ -4,9 +4,17 @@ from lstm_architecture import one_hot, run_with_config
 from sliding_window import sliding_window
 
 import numpy as np
+from hyperopt import hp, tpe, fmin, Trials, STATUS_OK, STATUS_FAIL
+import tensorflow as tf
 
 import cPickle as cp
 import time
+from bson import json_util
+import json
+import os
+import pickle
+import traceback
+import random
 
 
 #--------------------------------------------
@@ -142,12 +150,10 @@ for mat in [X_train, y_train, X_test, y_test]:
 # Training (maybe multiple) experiment(s)
 #--------------------------------------------
 
-n_layers_in_highway = 3
-n_stacked_layers = 3
-trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
-
-for learning_rate in [0.001]:
-    for lambda_loss_amount in [0.005]:
+def fine_tune(hyperparams):
+    try:
+    	if lambda_loss_amount<0:
+    		break
         print "learning_rate: {}".format(learning_rate)
         print "lambda_loss_amount: {}".format(lambda_loss_amount)
         print ""
@@ -155,21 +161,153 @@ for learning_rate in [0.001]:
         class EditedConfig(Config):
             def __init__(self, X, Y):
                 super(EditedConfig, self).__init__(X, Y)
-
                 # Edit only some parameters:
-                self.learning_rate = learning_rate
-                self.lambda_loss_amount = lambda_loss_amount
-                # Architecture params:
-                self.n_layers_in_highway = n_layers_in_highway
-                self.n_stacked_layers = n_stacked_layers
+                self.learning_rate = self.learning_rate * hyperparams["lr_rate_multiplier"]
+                self.lambda_loss_amount = self.lambda_loss_amount * hyperparams["l2_reg_multiplier"]
+                self.n_hidden = int(self.n_hidden * hyperparams["n_hidden_multiplier"])
+                # Set anew other parameters:
+                self.clip_gradients = hyperparams["clip_gradients"]
+                self.keep_prob_for_dropout = hyperparams["dropout_keep_probability"]
+                self.n_layers_in_highway = hyperparams["n_layers_in_highway"]
+                self.n_stacked_layers = hyperparams["n_stacked_layers"]
+                self.bias_mean = hyperparams["bias_mean"]
+                self.weights_stddev = hyperparams["weights_stddev"]
+                self.use_bidirectionnal_cells = hyperparams["use_bidirectionnal_cells"]
+                self.also_add_dropout_between_stacked_cells = hyperparams["also_add_dropout_between_stacked_cells"]
 
-        accuracy_out, best_accuracy, f1_score_out, best_f1_score = run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
+        print("Hyperparams:")
+        print(hyperparams)
+
+        accuracy_out, best_accuracy, f1_score_out, best_f1_score = (
+            run_with_config(EditedConfig, X_train, y_train, X_test, y_test)
+        )
+        trial_name = "model_{}x{}_{}_{}".format(
+            hyperparams["n_layers_in_highway"], hyperparams["n_stacked_layers"], best_accuracy, best_f1_score)
+
         print (accuracy_out, best_accuracy, f1_score_out, best_f1_score)
 
-        with open('{}_result_opportunity_18.txt'.format(trial_name),'a') as f:
-            f.write("""str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)\n""")
-            f.write(   str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n' )
+        results = {
+            "loss": -best_f1_score[0],
+            "status": STATUS_OK,
+            "space": hyperparams,
+            "accuracy_end": accuracy_out,
+            "accuracy_best": best_accuracy,
+            "f1_score_end": f1_score_out,
+            "f1_score_best": best_f1_score
+        }
+    except Exception as err:
+        try:
+            tf.reset_default_graph()
+            tf.get_default_session().close()
+        except:
+            pass
+        err_str = str(err)
+        print(err_str)
+        traceback_str = str(traceback.format_exc())
+        print(traceback_str)
+        results = {
+            'status': STATUS_FAIL,
+            'err': err_str,
+            'traceback': traceback_str
+        }
+        trial_name = "model_{}x{}_FAILED_{}".format(
+            hyperparams["n_layers_in_highway"], hyperparams["n_stacked_layers"], str(random.random()))
 
-        print "________________________________________________________"
-    print ""
-print "Done."
+    print("RESULTS:")
+    print(json.dumps(
+        results,
+        default=json_util.default, sort_keys=True,
+        indent=4, separators=(',', ': ')
+    ))
+    # Save all training results to disks with unique filenames
+    if not os.path.exists("results_18/"):
+        os.makedirs("results_18/")
+    with open('results_18/{}.txt.json'.format(trial_name), 'w') as f:
+        json.dump(
+            results, f,
+            default=json_util.default, sort_keys=True,
+            indent=4, separators=(',', ': ')
+        )
+
+    print("\n\n")
+    return results
+
+
+space = {
+    "n_layers_in_highway": hp.choice("n_layers_in_highway", [1, 2, 3]),
+    "n_stacked_layers": hp.choice("n_stacked_layers", [1, 2, 3]),
+    "lr_rate_multiplier": hp.loguniform("lr_rate_multi", -0.3, 0.3),
+    "l2_reg_multiplier": hp.loguniform("l2_multi", -0.3, 0.3),
+    "n_hidden_multiplier": hp.loguniform("n_hidden_multiplier", -0.3, 0.3),
+    "clip_gradients": hp.choice("clip_multi", [5., 10., 15., 20.]),
+    "dropout_keep_probability": hp.uniform("dropout_multi", 0.5, 1.0),
+    "bias_mean": hp.uniform("bias_mean", 0.0, 1.0),
+    "weights_stddev": hp.uniform("weights_stddev", 0.05, 0.5),
+    "use_bidirectionnal_cells": hp.choice("use_bidirectionnal_cells", [False, True]),
+    "also_add_dropout_between_stacked_cells": hp.choice("also_add_dropout_between_stacked_cells", [False, True])
+}
+
+
+def run_a_trial():
+    """
+    Run one TPE meta optimisation step and save its results.
+
+    See:
+    https://github.com/guillaume-chevalier/Hyperopt-Keras-CNN-CIFAR-100/blob/master/optimize.py
+    """
+    max_evals = nb_evals = 1
+
+    print("Attempt to resume a past training if it exists:")
+
+    try:
+        # https://github.com/hyperopt/hyperopt/issues/267
+        trials = pickle.load(open("results_18.pkl", "rb"))
+        print("Found saved Trials! Loading...")
+        max_evals = len(trials.trials) + nb_evals
+        print("Rerunning from {} trials to add another one.".format(
+            len(trials.trials)))
+    except:
+        trials = Trials()
+        print("Starting from scratch: new trials.")
+
+    best = fmin(
+        fine_tune,
+        space,
+        algo=tpe.suggest,
+        trials=trials,
+        max_evals=max_evals
+    )
+    pickle.dump(trials, open("results_18.pkl", "wb"))
+
+    print("\nOPTIMIZATION STEP COMPLETE.\n")
+    print("Best results yet (note that this is NOT calculated on the 'loss' "
+          "metric despite the key is 'loss' - we rather take the negative "
+          "best accuracy throughout learning as a metric to minimize):")
+    print(best)
+
+
+if __name__ == "__main__":
+    """
+    Plot the model and run the optimisation forever (and saves results).
+
+    See:
+    https://github.com/guillaume-chevalier/Hyperopt-Keras-CNN-CIFAR-100/blob/master/optimize.py
+    """
+
+    print("Here we train many models, one after the other.")
+
+    print("\nResults will be saved in the folder named 'results_18/'. "
+          "it is possible to sort them alphabetically and choose the "
+          "best loss for each architecture. As you run the "
+          "optimization, results are consinuously saved into a "
+          "'results.pkl' file, too. Re-running optimize.py will resume "
+          "the meta-optimization.\n")
+
+    while True:
+        try:
+            run_a_trial()
+        except Exception as err:
+            err_str = str(err)
+            print(err_str)
+            traceback_str = str(traceback.format_exc())
+            print(traceback_str)
